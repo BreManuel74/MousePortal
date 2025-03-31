@@ -143,19 +143,14 @@ class Corridor:
         """ 
         Build the initial corridor segments using CardMaker.
         """
-        for i in range(self.num_segments):
+        for i in range(-self.num_segments // 2, self.num_segments // 2):  # Adjust range to include negative indices
             segment_start: float = i * self.segment_length
             
             # ==== Left Wall:
-            # Create a card with dimensions (segment_length x wall_height),
-            # position it at x = -corridor_width/2 and rotate it so the face is inward.
             cm_left: CardMaker = CardMaker("left_wall")
-            # The card is generated in the XY plane; here we use X (length) and Z (height).
             cm_left.setFrame(0, self.segment_length, 0, self.wall_height)
             left_node: NodePath = self.parent.attachNewNode(cm_left.generate())
-            # Position the left wall at x = -corridor_width/2 and at the starting Y position
             left_node.setPos(-self.corridor_width / 2, segment_start, 0)
-            # Rotate to face inward (rotate around Z axis by 90°)
             left_node.setHpr(90, 0, 0)
             self.apply_texture(left_node, self.left_wall_texture)
             self.left_segments.append(left_node)
@@ -165,13 +160,12 @@ class Corridor:
             cm_right.setFrame(0, self.segment_length, 0, self.wall_height)
             right_node: NodePath = self.parent.attachNewNode(cm_right.generate())
             right_node.setPos(self.corridor_width / 2, segment_start, 0)
-            right_node.setHpr(-90, 0, 0) # Rotate to face inward (rotate around Z axis by -90°)
+            right_node.setHpr(-90, 0, 0)
             self.apply_texture(right_node, self.right_wall_texture)
             self.right_segments.append(right_node)
             
             # ==== Ceiling (Top):
             cm_ceiling: CardMaker = CardMaker("ceiling")
-            # The ceiling card covers the corridor width and one segment length.
             cm_ceiling.setFrame(-self.corridor_width / 2, self.corridor_width / 2, 0, self.segment_length)
             ceiling_node: NodePath = self.parent.attachNewNode(cm_ceiling.generate())
             ceiling_node.setPos(0, segment_start, self.wall_height)
