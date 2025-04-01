@@ -43,12 +43,6 @@ from stopwatch import Stopwatch
 gaussian_data = np.random.normal(loc=25, scale=5, size=1000)
 rounded_gaussian_data = np.round(gaussian_data)
 
-# Write the rounded Gaussian data to subject_data.py
-with open("subject_data.txt", "a") as f:
-    f.write("rounded_gaussian_data = ")
-    f.write(repr(rounded_gaussian_data.tolist()))
-    f.write("\n")
-
 # Create a global stopwatch instance
 global_stopwatch = Stopwatch()
 
@@ -132,6 +126,13 @@ class Corridor:
         self.special_wall: str = config["special_wall"]
         self.alternative_wall_texture_1 = config["alternative_wall_texture_1"]
         self.alternative_wall_texture_2 = config["alternative_wall_texture_2"]
+        self.trial_data = config["trial_data"]
+        
+        # Write the rounded Gaussian data to subject_data.py
+        with open(self.trial_data, "a") as f:
+            f.write("rounded_gaussian_data = ")
+            f.write(repr(rounded_gaussian_data.tolist()))
+            f.write("\n")
         
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
@@ -277,7 +278,7 @@ class Corridor:
         selected_texture = random.choice(wall_textures)
         
         # Write the selected texture to the subject_data.txt file
-        with open("subject_data.txt", "a") as f:
+        with open(self.trial_data, "a") as f:
             f.write(f"Selected texture: {selected_texture}\n")
         
         # Apply the selected texture to the walls
@@ -288,7 +289,7 @@ class Corridor:
         
         # Print the elapsed time since the corridor was initialized
         elapsed_time = global_stopwatch.get_elapsed_time()
-        with open("subject_data.txt", "a") as f:
+        with open(self.trial_data, "a") as f:
             f.write(f"Wall texture changed. Elapsed time: {int(elapsed_time)} seconds\n")
             f.write("\n")
         
@@ -325,7 +326,7 @@ class Corridor:
         segments_to_wait = random.choice(rounded_gaussian_data)
         
         # Write the selected number of segments to the subject_data.txt file
-        with open("subject_data.txt", "a") as f:
+        with open(self.trial_data, "a") as f:
             f.write(f"Segments to wait for texture change: {int(segments_to_wait)}\n")
         
         self.segments_until_texture_change = segments_to_wait

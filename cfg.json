@@ -18,5 +18,6 @@
     "special_wall": "assets/go.png", 
     "alternative_wall_texture_1": "assets/neutral_stim.png",
     "alternative_wall_texture_2": "assets/stop_stim.jpg",
-    "test_mode": false
+    "test_mode": false,
+    "trial_data": "subject_data.txt"
 }
