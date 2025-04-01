@@ -4,7 +4,7 @@
     "segment_length": 10.0,
     "corridor_width": 8.0,
     "wall_height": 10.0,
-    "num_segments": 50,
+    "num_segments": 20,
     "camera_height": 2.0,
     "treadmill_speed_scaling": 3,
     "speed_scaling": 0.05,
@@ -15,8 +15,8 @@
     "data_logging_file": "test.csv",
     "fog_density": 0.06,
     "serial_port": "COM8",
-    "special_wall": "assets/left_wall_texture.png", 
-    "alternative_wall_texture_1": "assets/Sine_pattern.png",
-    "alternative_wall_texture_2": "assets/horizontal.png",
+    "special_wall": "assets/go.png", 
+    "alternative_wall_texture_1": "assets/neutral_stim.png",
+    "alternative_wall_texture_2": "assets/stop_stim.jpg",
     "test_mode": false
 }

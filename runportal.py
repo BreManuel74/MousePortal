@@ -37,12 +37,20 @@ from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
 from direct.showbase import DirectObject
+from stopwatch import Stopwatch
 
 # Generate 1000 random samples from a normal distribution with mean 25 and standard deviation 5
 gaussian_data = np.random.normal(loc=25, scale=5, size=1000)
 rounded_gaussian_data = np.round(gaussian_data)
-print(rounded_gaussian_data)
 
+# Write the rounded Gaussian data to subject_data.py
+with open("subject_data.txt", "a") as f:
+    f.write("rounded_gaussian_data = ")
+    f.write(repr(rounded_gaussian_data.tolist()))
+    f.write("\n")
+
+# Create a global stopwatch instance
+global_stopwatch = Stopwatch()
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """
@@ -138,6 +146,9 @@ class Corridor:
         
         # Add a task to change textures at a random interval.
         self.schedule_texture_change()
+
+        # Start the stopwatch when the corridor is initialized
+        global_stopwatch.start()
 
     def build_segments(self) -> None:
         """ 
@@ -265,12 +276,22 @@ class Corridor:
         # Randomly select a texture
         selected_texture = random.choice(wall_textures)
         
+        # Write the selected texture to the subject_data.txt file
+        with open("subject_data.txt", "a") as f:
+            f.write(f"Selected texture: {selected_texture}\n")
+        
         # Apply the selected texture to the walls
         for left_node in self.left_segments:
             self.apply_texture(left_node, selected_texture)
         for right_node in self.right_segments:
             self.apply_texture(right_node, selected_texture)
-            
+        
+        # Print the elapsed time since the corridor was initialized
+        elapsed_time = global_stopwatch.get_elapsed_time()
+        with open("subject_data.txt", "a") as f:
+            f.write(f"Wall texture changed. Elapsed time: {int(elapsed_time)} seconds\n")
+            f.write("\n")
+        
         # Schedule the task to revert the textures after 5 seconds
         self.base.taskMgr.doMethodLater(5, self.revert_wall_textures, "revertWallTexturesTask")
         
@@ -292,9 +313,6 @@ class Corridor:
             self.apply_texture(left_node, self.left_wall_texture)
         for right_node in self.right_segments:
             self.apply_texture(right_node, self.right_wall_texture)
-            
-        # Schedule the next texture change
-        self.schedule_texture_change()
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -305,7 +323,11 @@ class Corridor:
         """
         # Randomly determine the number of segments after which to change the texture
         segments_to_wait = random.choice(rounded_gaussian_data)
-        print(segments_to_wait)
+        
+        # Write the selected number of segments to the subject_data.txt file
+        with open("subject_data.txt", "a") as f:
+            f.write(f"Segments to wait for texture change: {int(segments_to_wait)}\n")
+        
         self.segments_until_texture_change = segments_to_wait
 
     def update_texture_change(self) -> None:
