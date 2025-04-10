@@ -308,10 +308,19 @@ class Corridor:
         elapsed_time = global_stopwatch.get_elapsed_time()
         with open(self.trial_data, "a") as f:
             f.write(f"Wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
-            f.write("\n")
         
-        # Set the counter for segments to revert textures using a random value from rounded_stay_data
-        self.segments_until_revert = int(random.choice(rounded_stay_data))  # Pull random value from rounded_stay_data
+        # Determine the stay_or_go_data based on the selected texture
+        if selected_texture == self.special_wall:
+            stay_or_go_data = rounded_go_data
+        else:
+            stay_or_go_data = rounded_stay_data
+        
+        # Set the counter for segments to revert textures using a random value from stay_or_go_data
+        self.segments_until_revert = int(random.choice(stay_or_go_data))
+        
+        # Write the segments_until_revert value to the trial_data file
+        with open(self.trial_data, "a") as f:
+            f.write(f"Segments until revert: {self.segments_until_revert}\n")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -345,6 +354,7 @@ class Corridor:
         # Write the selected number of segments to the subject_data.txt file
         with open(self.trial_data, "a") as f:
             f.write(f"Segments to wait for texture change: {int(segments_to_wait)}\n")
+            f.write("\n")
         
         self.segments_until_texture_change = segments_to_wait
 
