@@ -290,7 +290,7 @@ class Corridor:
         # Print the elapsed time since the corridor was initialized
         elapsed_time = global_stopwatch.get_elapsed_time()
         with open(self.trial_data, "a") as f:
-            f.write(f"Wall texture changed. Elapsed time: {int(elapsed_time)} seconds\n")
+            f.write(f"Wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
             f.write("\n")
         
         # Schedule the task to revert the textures after 5 seconds
