@@ -43,11 +43,11 @@ from stopwatch import Stopwatch
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
 rounded_gaussian_data = np.round(gaussian_data)
 
-stay_gaussian_data = np.random.normal(loc=5, scale=2, size=250)
+stay_gaussian_data = np.random.normal(loc=7, scale=2, size=250)
 stay_gaussian_data = np.clip(stay_gaussian_data, 1, None)
 rounded_stay_data = np.round(stay_gaussian_data)
 
-go_gaussian_data = np.random.normal(loc=5, scale=2, size=250)
+go_gaussian_data = np.random.normal(loc=7, scale=2, size=250)
 go_gaussian_data = np.clip(go_gaussian_data, 1, None)
 rounded_go_data = np.round(go_gaussian_data)
 
@@ -143,6 +143,12 @@ class Corridor:
         with open(self.trial_data, "a") as f:
             f.write("rounded_gaussian_data = ")
             f.write(repr(rounded_gaussian_data.tolist()))
+            f.write("\n")
+            f.write("rounded_stay_data = ")
+            f.write(repr(rounded_stay_data.tolist()))
+            f.write("\n")
+            f.write("rounded_go_data = ")
+            f.write(repr(rounded_go_data.tolist()))
             f.write("\n")
         
         # Create a parent node for all corridor segments.
@@ -304,8 +310,8 @@ class Corridor:
             f.write(f"Wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
             f.write("\n")
         
-        # Set the counter for segments to revert textures
-        self.segments_until_revert = 10  # Revert after 10 segments
+        # Set the counter for segments to revert textures using a random value from rounded_stay_data
+        self.segments_until_revert = int(random.choice(rounded_stay_data))  # Pull random value from rounded_stay_data
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
