@@ -39,9 +39,20 @@ from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
 from direct.showbase import DirectObject
 from stopwatch import Stopwatch
 
-# Generate 1000 random samples from a normal distribution with mean 25 and standard deviation 5
-gaussian_data = np.random.normal(loc=25, scale=5, size=1000)
+# Generate 25 random samples from a normal distribution
+gaussian_data = np.random.normal(loc=25, scale=5, size=250)
 rounded_gaussian_data = np.round(gaussian_data)
+
+stay_gaussian_data = np.random.normal(loc=5, scale=2, size=250)
+stay_gaussian_data = np.clip(stay_gaussian_data, 1, None)
+rounded_stay_data = np.round(stay_gaussian_data)
+
+go_gaussian_data = np.random.normal(loc=5, scale=2, size=250)
+go_gaussian_data = np.clip(go_gaussian_data, 1, None)
+rounded_go_data = np.round(go_gaussian_data)
+
+#probe_duration = 2
+#probe_onset = set value of either movement thresh or time thresh
 
 # Create a global stopwatch instance
 global_stopwatch = Stopwatch()
@@ -270,7 +281,7 @@ class Corridor:
         # Define a list of possible wall textures
         wall_textures = [
             self.special_wall,  # Texture 1
-            self.alternative_wall_texture_1,  # Texture 2
+            #self.alternative_wall_texture_1,  # Texture 2
             self.alternative_wall_texture_2   # Texture 3
         ]
         
@@ -293,8 +304,8 @@ class Corridor:
             f.write(f"Wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
             f.write("\n")
         
-        # Schedule the task to revert the textures after 5 seconds
-        self.base.taskMgr.doMethodLater(5, self.revert_wall_textures, "revertWallTexturesTask")
+        # Set the counter for segments to revert textures
+        self.segments_until_revert = 10  # Revert after 10 segments
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -338,6 +349,12 @@ class Corridor:
         if self.segments_until_texture_change <= 0:
             self.change_wall_textures(None)  # Trigger the texture change
             self.schedule_texture_change()  # Schedule the next texture change
+        
+        # Check if textures need to be reverted
+        if hasattr(self, 'segments_until_revert') and self.segments_until_revert > 0:
+            self.segments_until_revert -= 1
+            if self.segments_until_revert == 0:
+                self.revert_wall_textures(None)  # Revert textures
             
 class FogEffect:
     """
