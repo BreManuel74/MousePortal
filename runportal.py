@@ -39,7 +39,7 @@ from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
 from direct.showbase import DirectObject
 from stopwatch import Stopwatch
 
-# Generate 25 random samples from a normal distribution
+# Generate 250 random samples from a normal distribution
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
 rounded_gaussian_data = np.round(gaussian_data)
 
@@ -167,6 +167,10 @@ class Corridor:
 
         # Start the stopwatch when the corridor is initialized
         global_stopwatch.start()
+
+        # Initialize attributes
+        self.segments_until_revert = 0  # Ensure this attribute exists
+        self.segments_until_texture_change = 0  # Initialize this as well if not already done
 
     def build_segments(self) -> None:
         """ 
@@ -361,7 +365,7 @@ class Corridor:
         """
         Check if the required number of segments has been recycled and change the texture if needed.
         """
-        if self.segments_until_texture_change <= 0:
+        if self.segments_until_texture_change + self.segments_until_revert <= 0:
             self.change_wall_textures(None)  # Trigger the texture change
             self.schedule_texture_change()  # Schedule the next texture change
         
