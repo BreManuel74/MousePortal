@@ -287,8 +287,7 @@ class Corridor:
         # Define a list of possible wall textures
         wall_textures = [
             self.special_wall,  # Texture 1
-            #self.alternative_wall_texture_1,  # Texture 2
-            self.alternative_wall_texture_2   # Texture 3
+            self.alternative_wall_texture_2   # Texture 2
         ]
         
         # Randomly select a texture
@@ -657,7 +656,7 @@ class MousePortal(ShowBase):
                 self.corridor.recycle_segment(direction="backward")
                 self.distance_since_recycle += self.segment_length
                 #self.corridor.segments_until_texture_change -= 1  # Decrement the texture change counter
-                self.corridor.update_texture_change()  # Check and update texture change logic
+                #self.corridor.update_texture_change()  # Check and update texture change logic
         
         # Log movement data (timestamp, distance, speed)
         self.data_logger.log(self.treadmill.data)
