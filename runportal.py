@@ -47,7 +47,7 @@ stay_gaussian_data = np.random.normal(loc=7, scale=2, size=250)
 stay_gaussian_data = np.clip(stay_gaussian_data, 1, None)
 rounded_stay_data = np.round(stay_gaussian_data)
 
-go_gaussian_data = np.random.normal(loc=7, scale=2, size=250)
+go_gaussian_data = np.random.normal(loc=30, scale=2, size=250)
 go_gaussian_data = np.clip(go_gaussian_data, 1, None)
 rounded_go_data = np.round(go_gaussian_data)
 
@@ -350,6 +350,10 @@ class Corridor:
         """
         Schedule the next texture change after a random number of wall segments are recycled.
         """
+        # Ensure segments_until_revert is initialized
+        if not hasattr(self, 'segments_until_revert'):
+            self.segments_until_revert = 0
+
         # Randomly determine the number of segments after which to change the texture
         segments_to_wait = random.choice(rounded_gaussian_data)
         
@@ -358,13 +362,13 @@ class Corridor:
             f.write(f"Segments to wait for texture change: {int(segments_to_wait)}\n")
             f.write("\n")
         
-        self.segments_until_texture_change = segments_to_wait
+        self.segments_until_texture_change = segments_to_wait + self.segments_until_revert
 
     def update_texture_change(self) -> None:
         """
         Check if the required number of segments has been recycled and change the texture if needed.
         """
-        if self.segments_until_texture_change + self.segments_until_revert <= 0:
+        if self.segments_until_texture_change <= 0:
             self.change_wall_textures(None)  # Trigger the texture change
             self.schedule_texture_change()  # Schedule the next texture change
         
