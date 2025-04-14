@@ -170,7 +170,6 @@ class Corridor:
 
         # Initialize attributes
         self.segments_until_revert = 0  # Ensure this attribute exists
-        self.segments_until_texture_change = 0  # Initialize this as well if not already done
 
     def build_segments(self) -> None:
         """ 
