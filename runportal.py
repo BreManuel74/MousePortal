@@ -170,6 +170,7 @@ class Corridor:
 
         # Initialize attributes
         self.segments_until_revert = 0  # Ensure this attribute exists
+        self.texture_change_scheduled = False  # Flag to track texture change scheduling
 
     def build_segments(self) -> None:
         """ 
@@ -327,6 +328,73 @@ class Corridor:
         # Return Task.done if task is None
         return Task.done if task is None else task.done
 
+    def change_wall_textures_temporarily(self, task: Task = None) -> Task:
+        """
+        Temporarily change the wall textures for 1 second and then revert them back.
+        
+        Parameters:
+            task (Task): The Panda3D task instance (optional).
+            
+        Returns:
+            Task: Continuation signal for the task manager.
+        """
+        # Apply the selected texture to the walls
+        for left_node in self.left_segments:
+            self.apply_texture(left_node, self.alternative_wall_texture_1)
+        for right_node in self.right_segments:
+            self.apply_texture(right_node, self.alternative_wall_texture_1)
+        
+        # Schedule a task to revert the textures back after 1 second
+        self.base.taskMgr.doMethodLater(1, self.revert_wall_textures, "RevertWallTextures")
+        
+        # Reset the flag to allow future texture changes
+        self.texture_change_scheduled = False
+        
+        # Return Task.done if task is None
+        return Task.done if task is None else task.done
+
+    def change_wall_textures_temporarily_once(self, task: Task = None) -> Task:
+        """
+        Temporarily change the wall textures for 1 second and then revert them back.
+        This method ensures the temporary texture change happens only once.
+        
+        Parameters:
+            task (Task): The Panda3D task instance (optional).
+            
+        Returns:
+            Task: Continuation signal for the task manager.
+        """
+        # Apply the selected texture to the walls
+        for left_node in self.left_segments:
+            self.apply_texture(left_node, self.alternative_wall_texture_1)
+        for right_node in self.right_segments:
+            self.apply_texture(right_node, self.alternative_wall_texture_1)
+        
+        # Schedule a task to revert the textures back after 1 second
+        self.base.taskMgr.doMethodLater(1, self.revert_temporary_textures, "RevertWallTextures")
+        
+        # Do not reset the texture_change_scheduled flag here to prevent repeated scheduling
+        return Task.done if task is None else task.done
+    
+    def revert_temporary_textures(self, task: Task = None) -> Task:
+        """
+        Revert the temporary textures of the left and right walls back to their original textures.
+        
+        Parameters:
+            task (Task): The Panda3D task instance (optional).
+            
+        Returns:
+            Task: Continuation signal for the task manager.
+        """
+        # Reapply the original textures to the walls
+        for left_node in self.left_segments:
+            self.apply_texture(left_node, self.left_wall_texture)
+        for right_node in self.right_segments:
+            self.apply_texture(right_node, self.right_wall_texture)
+        
+        # Return Task.done if task is None
+        return Task.done if task is None else task.done
+
     def revert_wall_textures(self, task: Task = None) -> Task:
         """
         Revert the textures of the left and right walls to their original textures.
@@ -342,6 +410,9 @@ class Corridor:
             self.apply_texture(left_node, self.left_wall_texture)
         for right_node in self.right_segments:
             self.apply_texture(right_node, self.right_wall_texture)
+        
+        # Schedule a task to change the wall textures temporarily after reverting
+        self.base.taskMgr.doMethodLater(2, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
