@@ -51,8 +51,8 @@ go_gaussian_data = np.random.normal(loc=30, scale=2, size=250)
 go_gaussian_data = np.clip(go_gaussian_data, 1, None)
 rounded_go_data = np.round(go_gaussian_data)
 
-#probe_duration = 2
-#probe_onset = set value of either movement thresh or time thresh
+probe_duration = 1
+probe_onset = 1
 
 # Create a global stopwatch instance
 global_stopwatch = Stopwatch()
@@ -335,14 +335,24 @@ class Corridor:
         Returns:
             Task: Continuation signal for the task manager.
         """
+        # Define a list of possible wall textures
+        temporary_wall_textures = [
+            self.floor_texture,  # Texture 1
+            self.alternative_wall_texture_1,   # Texture 2
+            self.ceiling_texture,  # Texture 3
+        ]
+
+        # Randomly select a texture
+        selected_temporary_texture = random.choice(temporary_wall_textures)
+
         # Apply the selected texture to the walls
         for left_node in self.left_segments:
-            self.apply_texture(left_node, self.alternative_wall_texture_1)
+            self.apply_texture(left_node, selected_temporary_texture)
         for right_node in self.right_segments:
-            self.apply_texture(right_node, self.alternative_wall_texture_1)
+            self.apply_texture(right_node, selected_temporary_texture)
         
         # Schedule a task to revert the textures back after 1 second
-        self.base.taskMgr.doMethodLater(1, self.revert_temporary_textures, "RevertWallTextures")
+        self.base.taskMgr.doMethodLater(probe_duration, self.revert_temporary_textures, "RevertWallTextures")
         
         # Do not reset the texture_change_scheduled flag here to prevent repeated scheduling
         return Task.done if task is None else task.done
@@ -383,7 +393,7 @@ class Corridor:
             self.apply_texture(right_node, self.right_wall_texture)
         
         # Schedule a task to change the wall textures temporarily after reverting
-        self.base.taskMgr.doMethodLater(2, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+        self.base.taskMgr.doMethodLater(probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
