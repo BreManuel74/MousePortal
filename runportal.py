@@ -345,6 +345,15 @@ class Corridor:
         # Randomly select a texture
         selected_temporary_texture = random.choice(temporary_wall_textures)
 
+        # Write the selected texture to the subject_data.txt file
+        with open(self.trial_data, "a") as f:
+            f.write(f"Selected temporary texture: {selected_temporary_texture}\n")
+
+        ## Print the elapsed time since the corridor was initialized
+        elapsed_time = global_stopwatch.get_elapsed_time() 
+        with open(self.trial_data, "a") as f:
+            f.write(f"Temporary wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
+
         # Apply the selected texture to the walls
         for left_node in self.left_segments:
             self.apply_texture(left_node, selected_temporary_texture)
