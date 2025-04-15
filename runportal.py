@@ -43,12 +43,20 @@ from stopwatch import Stopwatch
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
 rounded_gaussian_data = np.round(gaussian_data)
 
-stay_gaussian_data = np.random.normal(loc=7, scale=2, size=250)
-stay_gaussian_data = np.clip(stay_gaussian_data, 1, None)
+# Generate 250 random samples from a normal distribution for stay_gaussian_data
+stay_gaussian_data = []
+while len(stay_gaussian_data) < 250:
+    sample = np.random.normal(loc=7, scale=2)
+    if sample >= 1:  # Only accept values >= 1
+        stay_gaussian_data.append(sample)
 rounded_stay_data = np.round(stay_gaussian_data)
 
-go_gaussian_data = np.random.normal(loc=30, scale=2, size=250)
-go_gaussian_data = np.clip(go_gaussian_data, 1, None)
+# Generate 250 random samples from a normal distribution for go_gaussian_data
+go_gaussian_data = []
+while len(go_gaussian_data) < 250:
+    sample = np.random.normal(loc=30, scale=2)
+    if sample >= 1:  # Only accept values >= 1
+        go_gaussian_data.append(sample)
 rounded_go_data = np.round(go_gaussian_data)
 
 probe_duration = 1
@@ -347,12 +355,12 @@ class Corridor:
 
         # Write the selected texture to the subject_data.txt file
         with open(self.trial_data, "a") as f:
-            f.write(f"Selected temporary texture: {selected_temporary_texture}\n")
+            f.write(f"Selected probe texture: {selected_temporary_texture}\n")
 
         ## Print the elapsed time since the corridor was initialized
         elapsed_time = global_stopwatch.get_elapsed_time() 
         with open(self.trial_data, "a") as f:
-            f.write(f"Temporary wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
+            f.write(f"Probe flashed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
 
         # Apply the selected texture to the walls
         for left_node in self.left_segments:
@@ -660,9 +668,9 @@ class MousePortal(ShowBase):
      # Initialize fog effect
         self.fog_effect = FogEffect(self, density= self.cfg["fog_density"], fog_color=(0.5, 0.5, 0.5))
         
-        # self.taskMgr.setupTaskChain("serialInputDevice", numThreads = 1, tickClock = None,
-        #                threadPriority = None, frameBudget = None,
-        #                frameSync = True, timeslicePriority = None)
+        self.taskMgr.setupTaskChain("serialInputDevice", numThreads = 1, tickClock = None,
+                        threadPriority = None, frameBudget = None,
+                        frameSync = True, timeslicePriority = None)
         self.taskMgr.add(self.treadmill._read_serial, name = "readSerial")
 
         self.messenger.toggleVerbose()
