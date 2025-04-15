@@ -141,15 +141,11 @@ class Corridor:
         
         # Write the rounded Gaussian data to subject_data.py
         with open(self.trial_data, "a") as f:
-            f.write("rounded_gaussian_data = ")
-            f.write(repr(rounded_gaussian_data.tolist()))
-            f.write("\n")
-            f.write("rounded_stay_data = ")
-            f.write(repr(rounded_stay_data.tolist()))
-            f.write("\n")
-            f.write("rounded_go_data = ")
-            f.write(repr(rounded_go_data.tolist()))
-            f.write("\n")
+            f.write(
+                f"rounded_gaussian_data = {repr(rounded_gaussian_data.tolist())}\n"
+                f"rounded_stay_data = {repr(rounded_stay_data.tolist())}\n"
+                f"rounded_go_data = {repr(rounded_go_data.tolist())}\n"
+            )
         
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
@@ -324,31 +320,6 @@ class Corridor:
         # Write the segments_until_revert value to the trial_data file
         with open(self.trial_data, "a") as f:
             f.write(f"Segments until revert: {self.segments_until_revert}\n")
-        
-        # Return Task.done if task is None
-        return Task.done if task is None else task.done
-
-    def change_wall_textures_temporarily(self, task: Task = None) -> Task:
-        """
-        Temporarily change the wall textures for 1 second and then revert them back.
-        
-        Parameters:
-            task (Task): The Panda3D task instance (optional).
-            
-        Returns:
-            Task: Continuation signal for the task manager.
-        """
-        # Apply the selected texture to the walls
-        for left_node in self.left_segments:
-            self.apply_texture(left_node, self.alternative_wall_texture_1)
-        for right_node in self.right_segments:
-            self.apply_texture(right_node, self.alternative_wall_texture_1)
-        
-        # Schedule a task to revert the textures back after 1 second
-        self.base.taskMgr.doMethodLater(1, self.revert_wall_textures, "RevertWallTextures")
-        
-        # Reset the flag to allow future texture changes
-        self.texture_change_scheduled = False
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
