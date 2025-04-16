@@ -38,6 +38,7 @@ from direct.task import Task
 from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
 from direct.showbase import DirectObject
 from stopwatch import Stopwatch
+#from reward_or_puff import RewardOrPuff
 
 # Generate 250 random samples from a normal distribution
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
@@ -58,9 +59,6 @@ while len(go_gaussian_data) < 250:
     if sample >= 1:  # Only accept values >= 1
         go_gaussian_data.append(sample)
 rounded_go_data = np.round(go_gaussian_data)
-
-probe_duration = 1
-probe_onset = 1
 
 # Create a global stopwatch instance
 global_stopwatch = Stopwatch()
@@ -120,7 +118,6 @@ class DataLogger:
     def close(self):
         self.file.close()
 
-
 class Corridor:
     """
     Class for generating infinite corridor geometric rendering
@@ -146,6 +143,8 @@ class Corridor:
         self.alternative_wall_texture_1 = config["alternative_wall_texture_1"]
         self.alternative_wall_texture_2 = config["alternative_wall_texture_2"]
         self.trial_data = config["trial_data"]
+        self.probe_onset = config["probe_onset"]
+        self.probe_duration = config["probe_duration"]
         
         # Write the rounded Gaussian data to subject_data.py
         with open(self.trial_data, "a") as f:
@@ -369,7 +368,7 @@ class Corridor:
             self.apply_texture(right_node, selected_temporary_texture)
         
         # Schedule a task to revert the textures back after 1 second
-        self.base.taskMgr.doMethodLater(probe_duration, self.revert_temporary_textures, "RevertWallTextures")
+        self.base.taskMgr.doMethodLater(self.probe_duration, self.revert_temporary_textures, "RevertWallTextures")
         
         # Do not reset the texture_change_scheduled flag here to prevent repeated scheduling
         return Task.done if task is None else task.done
@@ -410,7 +409,7 @@ class Corridor:
             self.apply_texture(right_node, self.right_wall_texture)
         
         # Schedule a task to change the wall textures temporarily after reverting
-        self.base.taskMgr.doMethodLater(probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+        self.base.taskMgr.doMethodLater(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done

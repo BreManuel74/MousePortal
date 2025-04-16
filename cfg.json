@@ -14,10 +14,12 @@
     "ceiling_texture": "assets/white.png",
     "data_logging_file": "test.csv",
     "fog_density": 0.06,
-    "serial_port": "COM8",
+    "serial_port": "COM3",
     "special_wall": "assets/go.png", 
     "alternative_wall_texture_1": "assets/neutral_stim.png",
     "alternative_wall_texture_2": "assets/stop_stim.jpg",
     "test_mode": false,
-    "trial_data": "subject_data.txt"
+    "trial_data": "subject_data.txt",
+    "probe_onset": 1.0,
+    "probe_duration": 1.0
 }
