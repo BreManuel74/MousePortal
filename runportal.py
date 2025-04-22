@@ -38,7 +38,7 @@ from direct.task import Task
 from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
 from direct.showbase import DirectObject
 from stopwatch import Stopwatch
-#from reward_or_puff import RewardOrPuff
+from direct.fsm.FSM import FSM
 
 # Generate 250 random samples from a normal distribution
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
@@ -599,7 +599,54 @@ class SerialInputManager(DirectObject.DirectObject):
         elif not self.test_mode and self.serial:
             self.serial.close()
 
+class RewardOrPuff(FSM):
+    """
+    FSM to manage the reward or puff state.
+    """
+    def __init__(self, base: ShowBase, config: Dict[str, Any]) -> None:
+        """
+        Initialize the FSM with the base and configuration.
 
+        Parameters:
+            base (ShowBase): The Panda3D base instance.
+            config (dict): Configuration parameters.
+        """
+        FSM.__init__(self, "RewardOrPuff")
+        self.base = base
+        self.config = config
+        self.accept('puff-event', self.request, ['Puff'])
+        self.accept('reward-event', self.request, ['Reward'])
+        self.accept('neutral-event', self.request, ['Neutral'])
+
+    def enterPuff(self):
+        """
+        Enter the Puff state.
+        """
+        print("Entering Puff state")
+        self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
+
+    def exitPuff(self):
+        """
+        Exit the Puff state.
+        """
+        print("Exiting Puff state")
+        
+    def enterReward(self):
+        print("Entering Reward state: give reward (e.g. juice drop)")
+        self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
+
+    def exitReward(self):
+        print("Exiting Reward state.")
+
+    def enterNeutral(self):
+        print("Entering Neutral state: waiting...")
+
+    def exitNeutral(self):
+        print("Exiting Neutral state.")
+
+    def _transitionToNeutral(self, task):
+        self.request('Neutral')
+        return Task.done
 
 class MousePortal(ShowBase):
     """
@@ -612,9 +659,7 @@ class MousePortal(ShowBase):
         """
         ShowBase.__init__(self)
         
-        # Load configuration from JSON (direct option)
-        # config: Dict[str, Any] = load_config("conf.json")
-        # Load configuration (init option for testing)
+        # Load configuration from JSON
         with open(config_file, 'r') as f:
             self.cfg: Dict[str, Any] = load_config(config_file)
 
@@ -622,8 +667,7 @@ class MousePortal(ShowBase):
         wp = WindowProperties()
         wp.setSize(self.cfg["window_width"], self.cfg["window_height"])
         self.setFrameRateMeter(False)
-        # Disable default mouse-based camera control for mapped input
-        self.disableMouse()
+        self.disableMouse()  # Disable default mouse-based camera control
         wp.setCursorHidden(True)
         wp.setFullscreen(True)
         wp.setUndecorated(True)
@@ -646,35 +690,52 @@ class MousePortal(ShowBase):
         self.accept('escape', self.userExit)
 
         # Set up treadmill input
-        self.treadmill = SerialInputManager(serial_port=self.cfg["serial_port"], messenger=self.messenger, test_mode=self.cfg.get("test_mode", False))
+        self.treadmill = SerialInputManager(
+            serial_port=self.cfg["serial_port"],
+            messenger=self.messenger,
+            test_mode=self.cfg.get("test_mode", False)
+        )
 
-        # Create corridor geometry.
+        # Create corridor geometry
         self.corridor: Corridor = Corridor(self, self.cfg)
         self.segment_length: float = self.cfg["segment_length"]
         
-        # Variable to track movement since last recycling.
+        # Initialize the RewardOrPuff FSM
+        self.fsm = RewardOrPuff(self, self.cfg)
+        
+        # Variable to track movement since last recycling
         self.distance_since_recycle: float = 0.0
         
-        # Movement speed (units per second).
+        # Movement speed (units per second)
         self.movement_speed: float = 10.0
         
         # Initialize data logger
         self.data_logger = DataLogger(self.cfg["data_logging_file"])
 
-        # Add the update task.
+        # Add the update task
         self.taskMgr.add(self.update, "updateTask")
         
-     # Initialize fog effect
-        self.fog_effect = FogEffect(self, density= self.cfg["fog_density"], fog_color=(0.5, 0.5, 0.5))
+        # Initialize fog effect
+        self.fog_effect = FogEffect(
+            self,
+            density=self.cfg["fog_density"],
+            fog_color=(0.5, 0.5, 0.5)
+        )
         
-        self.taskMgr.setupTaskChain("serialInputDevice", numThreads = 1, tickClock = None,
-                        threadPriority = None, frameBudget = None,
-                        frameSync = True, timeslicePriority = None)
-        self.taskMgr.add(self.treadmill._read_serial, name = "readSerial")
+        # Set up task chain for serial input
+        self.taskMgr.setupTaskChain(
+            "serialInputDevice",
+            numThreads=1,
+            tickClock=None,
+            threadPriority=None,
+            frameBudget=None,
+            frameSync=True,
+            timeslicePriority=None
+        )
+        self.taskMgr.add(self.treadmill._read_serial, name="readSerial")
 
-        self.messenger.toggleVerbose()
-
-
+        # Enable verbose messaging
+        #self.messenger.toggleVerbose()
 
     def set_key(self, key: str, value: bool) -> None:
         """
@@ -716,25 +777,37 @@ class MousePortal(ShowBase):
         self.camera.setPos(0, self.camera_position, self.camera_height)
         
         # Recycle corridor segments when the camera moves beyond one segment length
-        # Forward movement -----> Recycle segments from the back to the front
         if move_distance > 0:
             self.distance_since_recycle += move_distance
             while self.distance_since_recycle >= self.segment_length:
                 self.corridor.recycle_segment(direction="forward")
                 self.distance_since_recycle -= self.segment_length
-                self.corridor.segments_until_texture_change -= 1  # Decrement the texture change counter
-                self.corridor.update_texture_change()  # Check and update texture change logic
-        # Backward movement <----- Recycle segments from the front to the back
+                self.corridor.segments_until_texture_change -= 1
+                self.corridor.update_texture_change()
         elif move_distance < 0:
             self.distance_since_recycle += move_distance
             while self.distance_since_recycle <= -self.segment_length:
                 self.corridor.recycle_segment(direction="backward")
                 self.distance_since_recycle += self.segment_length
-                #self.corridor.segments_until_texture_change -= 1  # Decrement the texture change counter
-                #self.corridor.update_texture_change()  # Check and update texture change logic
-        
+
         # Log movement data (timestamp, distance, speed)
         self.data_logger.log(self.treadmill.data)
+
+        # FSM state transition logic
+        selected_texture = self.corridor.left_wall_texture
+
+        if selected_texture == self.corridor.special_wall:
+            if self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
+                print("Requesting Reward state")
+                self.fsm.request('Reward')
+        elif selected_texture == self.corridor.alternative_wall_texture_2:
+            if self.fsm.state != 'Puff':  # Only request if not already in the 'Puff' state
+                print("Requesting Puff state")
+                self.fsm.request('Puff')
+        else:
+            if self.fsm.state != 'Neutral':  # Only request if not already in the 'Neutral' state
+                print("Requesting Neutral state")
+                self.fsm.request('Neutral')
         
         return Task.cont
 
