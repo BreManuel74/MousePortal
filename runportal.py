@@ -645,7 +645,18 @@ class RewardOrPuff(FSM):
         print("Exiting Neutral state.")
 
     def _transitionToNeutral(self, task):
-        self.request('Neutral')
+        """
+        Transition to the Neutral state only if the wall texture is the original wall texture.
+        """
+        # Get the current texture of the left wall
+        current_texture = self.base.corridor.left_segments[0].getTexture().getFilename()
+
+        # Check if the current texture matches the original wall texture
+        if current_texture == self.base.corridor.left_wall_texture:
+            self.request('Neutral')
+        else:
+            print("Wall texture is not the original texture. Staying in current state.")
+
         return Task.done
 
 class MousePortal(ShowBase):
@@ -794,7 +805,8 @@ class MousePortal(ShowBase):
         self.data_logger.log(self.treadmill.data)
 
         # FSM state transition logic
-        selected_texture = self.corridor.left_wall_texture
+        # Dynamically get the current texture of the left wall
+        selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
 
         if selected_texture == self.corridor.special_wall:
             if self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
