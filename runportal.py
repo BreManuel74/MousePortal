@@ -757,8 +757,9 @@ class MousePortal(ShowBase):
         # Enable verbose messaging
         #self.messenger.toggleVerbose()
 
-        # Add an attribute to track the number of segments passed with the special wall texture for the Puff state
+        # Add an attribute to track the number of segments passed for the FSM logic
         self.segments_with_special_texture = 0
+        self.segments_with_stay_texture = 0
 
         # Add attributes to store time points
         self.enter_go_time = 0.0
@@ -813,11 +814,15 @@ class MousePortal(ShowBase):
                 self.corridor.segments_until_texture_change -= 1
                 self.corridor.update_texture_change()
 
-                # Check if the new front segment has the special wall texture
+                # Check if the new front segment has the stay or go textures
                 new_front_texture = self.corridor.left_segments[0].getTexture().getFilename()
                 if new_front_texture == self.corridor.special_wall:
                     self.segments_with_special_texture += 1
                     print(f"New segment with special texture counted: {self.segments_with_special_texture}")
+                elif new_front_texture == self.corridor.alternative_wall_texture_2:
+                    self.segments_with_stay_texture += 1
+                    print(f"New segment with stay texture counted: {self.segments_with_stay_texture}")
+        
         elif move_distance < 0:
             self.distance_since_recycle += move_distance
             while self.distance_since_recycle <= -self.segment_length:
@@ -831,12 +836,11 @@ class MousePortal(ShowBase):
         # Dynamically get the current texture of the left wall
         selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
 
-
         # Get the elapsed time from the global stopwatch
         current_time = global_stopwatch.get_elapsed_time()
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
+            if self.segments_with_stay_texture >= 5 and self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
