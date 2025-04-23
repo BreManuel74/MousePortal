@@ -748,6 +748,9 @@ class MousePortal(ShowBase):
         # Enable verbose messaging
         #self.messenger.toggleVerbose()
 
+        # Add an attribute to track the number of segments passed with the special wall texture for the Puff state
+        self.segments_with_special_texture = 0
+
     def set_key(self, key: str, value: bool) -> None:
         """
         Update the key state for the given key.
@@ -791,10 +794,17 @@ class MousePortal(ShowBase):
         if move_distance > 0:
             self.distance_since_recycle += move_distance
             while self.distance_since_recycle >= self.segment_length:
+                # Recycle the segment in the forward direction
                 self.corridor.recycle_segment(direction="forward")
                 self.distance_since_recycle -= self.segment_length
                 self.corridor.segments_until_texture_change -= 1
                 self.corridor.update_texture_change()
+
+                # Check if the new front segment has the special wall texture
+                new_front_texture = self.corridor.left_segments[0].getTexture().getFilename()
+                if new_front_texture == self.corridor.special_wall:
+                    self.segments_with_special_texture += 1
+                    print(f"New segment with special texture counted: {self.segments_with_special_texture}")
         elif move_distance < 0:
             self.distance_since_recycle += move_distance
             while self.distance_since_recycle <= -self.segment_length:
@@ -808,15 +818,16 @@ class MousePortal(ShowBase):
         # Dynamically get the current texture of the left wall
         selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
 
-        if selected_texture == self.corridor.special_wall:
+        if selected_texture == self.corridor.alternative_wall_texture_2:
             if self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
-        elif selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.fsm.state != 'Puff':  # Only request if not already in the 'Puff' state
+        elif selected_texture == self.corridor.special_wall:
+            if self.segments_with_special_texture >= 5 and self.fsm.state != 'Puff':  # Only request if not already in the 'Puff' state
                 print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
+            self.segments_with_special_texture = 0  # Reset the counter when the texture changes
             if self.fsm.state != 'Neutral':  # Only request if not already in the 'Neutral' state
                 print("Requesting Neutral state")
                 self.fsm.request('Neutral')
