@@ -445,7 +445,11 @@ class Corridor:
             if new_front_texture == self.special_wall:
                 # Update the enter_go_time in the MousePortal instance
                 self.base.enter_go_time = global_stopwatch.get_elapsed_time()
-                print(f"enter_go_time updated to {self.base.enter_go_time:.2f} seconds")
+                #print(f"enter_go_time updated to {self.base.enter_go_time:.2f} seconds")
+            elif new_front_texture == self.alternative_wall_texture_2:
+                # Update the enter_stay_time in the MousePortal instance
+                self.base.enter_stay_time = global_stopwatch.get_elapsed_time()
+                #print(f"enter_stay_time updated to {self.base.enter_stay_time:.2f} seconds")
 
             # Schedule the next texture change
             self.schedule_texture_change()
@@ -763,7 +767,7 @@ class MousePortal(ShowBase):
 
         # Add attributes to store time points
         self.enter_go_time = 0.0
-        self.enter_stay_time = global_stopwatch.get_elapsed_time()
+        self.enter_stay_time = 0.0
 
     def set_key(self, key: str, value: bool) -> None:
         """
@@ -818,10 +822,10 @@ class MousePortal(ShowBase):
                 new_front_texture = self.corridor.left_segments[0].getTexture().getFilename()
                 if new_front_texture == self.corridor.special_wall:
                     self.segments_with_special_texture += 1
-                    print(f"New segment with special texture counted: {self.segments_with_special_texture}")
+                    #print(f"New segment with special texture counted: {self.segments_with_special_texture}")
                 elif new_front_texture == self.corridor.alternative_wall_texture_2:
                     self.segments_with_stay_texture += 1
-                    print(f"New segment with stay texture counted: {self.segments_with_stay_texture}")
+                    #print(f"New segment with stay texture counted: {self.segments_with_stay_texture}")
         
         elif move_distance < 0:
             self.distance_since_recycle += move_distance
@@ -840,7 +844,7 @@ class MousePortal(ShowBase):
         current_time = global_stopwatch.get_elapsed_time()
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.segments_with_stay_texture >= 5 and self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
+            if self.segments_with_stay_texture <= 5 and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + 2:  # Only request if not already in the 'Reward' state
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
@@ -849,6 +853,7 @@ class MousePortal(ShowBase):
                 self.fsm.request('Puff')
         else:
             self.segments_with_special_texture = 0  # Reset the counter when the texture changes
+            self.segments_with_stay_texture = 0
             if self.fsm.state != 'Neutral':  # Only request if not already in the 'Neutral' state
                 print("Requesting Neutral state")
                 self.fsm.request('Neutral')
