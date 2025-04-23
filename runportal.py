@@ -437,15 +437,25 @@ class Corridor:
         Check if the required number of segments has been recycled and change the texture if needed.
         """
         if self.segments_until_texture_change <= 0:
-            self.change_wall_textures(None)  # Trigger the texture change
-            self.schedule_texture_change()  # Schedule the next texture change
-        
+            # Trigger the texture change
+            self.change_wall_textures(None)
+            
+            # Check if the new texture is the special wall texture
+            new_front_texture = self.left_segments[0].getTexture().getFilename()
+            if new_front_texture == self.special_wall:
+                # Update the enter_go_time in the MousePortal instance
+                self.base.enter_go_time = global_stopwatch.get_elapsed_time()
+                print(f"enter_go_time updated to {self.base.enter_go_time:.2f} seconds")
+
+            # Schedule the next texture change
+            self.schedule_texture_change()
+
         # Check if textures need to be reverted
         if hasattr(self, 'segments_until_revert') and self.segments_until_revert > 0:
             self.segments_until_revert -= 1
             if self.segments_until_revert == 0:
                 self.revert_wall_textures(None)  # Revert textures
-            
+
 class FogEffect:
     """
     Class to manage and apply fog to the scene.
@@ -472,7 +482,6 @@ class FogEffect:
         
         # Attach the fog to the root node to affect the entire scene.
         render.setFog(self.fog)
-
 
 class SerialInputManager(DirectObject.DirectObject):
     """
@@ -751,6 +760,10 @@ class MousePortal(ShowBase):
         # Add an attribute to track the number of segments passed with the special wall texture for the Puff state
         self.segments_with_special_texture = 0
 
+        # Add attributes to store time points
+        self.enter_go_time = 0.0
+        self.enter_stay_time = global_stopwatch.get_elapsed_time()
+
     def set_key(self, key: str, value: bool) -> None:
         """
         Update the key state for the given key.
@@ -818,12 +831,16 @@ class MousePortal(ShowBase):
         # Dynamically get the current texture of the left wall
         selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
 
+
+        # Get the elapsed time from the global stopwatch
+        current_time = global_stopwatch.get_elapsed_time()
+
         if selected_texture == self.corridor.alternative_wall_texture_2:
             if self.fsm.state != 'Reward':  # Only request if not already in the 'Reward' state
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
-            if self.segments_with_special_texture >= 5 and self.fsm.state != 'Puff':  # Only request if not already in the 'Puff' state
+            if self.segments_with_special_texture <= 5 and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + 2:  # Only request if not already in the 'Puff' state
                 print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
