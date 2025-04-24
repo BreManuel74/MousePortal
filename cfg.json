@@ -15,6 +15,8 @@
     "data_logging_file": "test.csv",
     "fog_density": 0.06,
     "serial_port": "COM3",
+    "arduino_port": "COM4",
+    "arduino_baudrate": 9600,
     "special_wall": "assets/go.png", 
     "alternative_wall_texture_1": "assets/neutral_stim.png",
     "alternative_wall_texture_2": "assets/stop_stim.jpg",

@@ -612,6 +612,42 @@ class SerialInputManager(DirectObject.DirectObject):
         elif not self.test_mode and self.serial:
             self.serial.close()
 
+class SerialOutputManager(DirectObject.DirectObject):
+    """
+    Manages serial output to an Arduino.
+    
+    This class abstracts the serial connection and provides methods to send output signals
+    based on input from the FSM class.
+    """
+    def __init__(self, arduino_port: str, arduino_baudrate: int) -> None:
+        self._port = arduino_port
+        self._baud = arduino_baudrate
+        
+        try:
+            self.serial = serial.Serial(self._port, self._baud, timeout=1)
+        except serial.SerialException as e:
+            print(f"{self.__class__}: I failed to open serial port {self._port}: {e}")
+            raise
+
+    def send_signal(self, signal: str) -> None:
+        """
+        Send a signal to the Arduino.
+        
+        Parameters:
+            signal (str): The signal to send, e.g., 'reward' or 'puff'.
+        """
+        if self.serial.is_open:
+            self.serial.write(signal.encode('utf-8'))
+            print(f"Sent signal: {signal}")
+        else:
+            print("Arduino serial port is not open.")
+
+    def close(self) -> None:
+        """Close the serial connection."""
+        if self.serial:
+            self.serial.close()
+            print("Arduino serial port closed.")
+
 class RewardOrPuff(FSM):
     """
     FSM to manage the reward or puff state.
@@ -718,6 +754,12 @@ class MousePortal(ShowBase):
             serial_port=self.cfg["serial_port"],
             messenger=self.messenger,
             test_mode=self.cfg.get("test_mode", False)
+        )
+
+        # Set up serial output to Arduino
+        self.serial_output = SerialOutputManager(
+            arduino_port=self.cfg["arduino_port"],
+            arduino_baudrate=self.cfg["arduino_baudrate"]
         )
 
         # Create corridor geometry
@@ -844,11 +886,11 @@ class MousePortal(ShowBase):
         current_time = global_stopwatch.get_elapsed_time()
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.segments_with_stay_texture <= 5 and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + 2:  # Only request if not already in the 'Reward' state
+            if self.segments_with_stay_texture <= 5 and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + 2:
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
-            if self.segments_with_special_texture <= 5 and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + 2:  # Only request if not already in the 'Puff' state
+            if self.segments_with_special_texture <= 5 and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + 2:
                 print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
