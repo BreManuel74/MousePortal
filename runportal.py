@@ -638,7 +638,7 @@ class SerialOutputManager(DirectObject.DirectObject):
         """
         if self.serial.is_open:
             self.serial.write(signal.encode('utf-8'))
-            print(f"Sent signal: {signal}")
+            #print(f"Sent signal: {signal}")
         else:
             print("Arduino serial port is not open.")
 
@@ -663,6 +663,7 @@ class RewardOrPuff(FSM):
         FSM.__init__(self, "RewardOrPuff")
         self.base = base
         self.config = config
+        self.trial_data = config["trial_data"]
         self.accept('puff-event', self.request, ['Puff'])
         self.accept('reward-event', self.request, ['Reward'])
         self.accept('neutral-event', self.request, ['Neutral'])
@@ -671,7 +672,8 @@ class RewardOrPuff(FSM):
         """
         Enter the Puff state.
         """
-        print("Entering Puff state")
+        with open(self.trial_data, "a") as f:
+            f.write(f"Mouse puffed at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
         self.base.serial_output.send_signal('puff\n')
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
@@ -679,21 +681,28 @@ class RewardOrPuff(FSM):
         """
         Exit the Puff state.
         """
-        print("Exiting Puff state")
+        #print("Exiting Puff state")
         
     def enterReward(self):
-        print("Entering Reward state")
+        with open(self.trial_data, "a") as f:
+            f.write(f"Mouse rewarded at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
         self.base.serial_output.send_signal('reward\n')
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitReward(self):
-        print("Exiting Reward state.")
+        """
+        Exit the Reward state."""
+        #print("Exiting Reward state.")
 
     def enterNeutral(self):
-        print("Entering Neutral state: waiting...")
+        """
+        Enter the Neutral state."""
+        #print("Entering Neutral state: waiting...")
 
     def exitNeutral(self):
-        print("Exiting Neutral state.")
+        """
+        Exit the Neutral state."""
+        #print("Exiting Neutral state.")
 
     def _transitionToNeutral(self, task):
         """
@@ -706,7 +715,7 @@ class RewardOrPuff(FSM):
         if current_texture == self.base.corridor.left_wall_texture:
             self.request('Neutral')
         else:
-            print("Wall texture is not the original texture. Staying in current state.")
+            pass
 
         return Task.done
 
@@ -889,17 +898,17 @@ class MousePortal(ShowBase):
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
             if self.segments_with_stay_texture <= 5 and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + 2:
-                print("Requesting Reward state")
+                #print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
             if self.segments_with_special_texture <= 5 and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + 2:
-                print("Requesting Puff state")
+                #print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
-            self.segments_with_special_texture = 0  # Reset the counter when the texture changes
+            self.segments_with_special_texture = 0 
             self.segments_with_stay_texture = 0
-            if self.fsm.state != 'Neutral':  # Only request if not already in the 'Neutral' state
-                print("Requesting Neutral state")
+            if self.fsm.state != 'Neutral':
+                #print("Requesting Neutral state")
                 self.fsm.request('Neutral')
         
         return Task.cont
