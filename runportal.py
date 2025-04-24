@@ -672,6 +672,7 @@ class RewardOrPuff(FSM):
         Enter the Puff state.
         """
         print("Entering Puff state")
+        self.base.serial_output.send_signal('puff\n')
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
