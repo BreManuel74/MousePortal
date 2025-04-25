@@ -779,6 +779,10 @@ class MousePortal(ShowBase):
         
         # Initialize the RewardOrPuff FSM
         self.fsm = RewardOrPuff(self, self.cfg)
+        self.reward_distance = self.cfg["reward_distance"]
+        self.puff_distance = self.cfg["puff_distance"]
+        self.reward_time = self.cfg["reward_time"]
+        self.puff_time = self.cfg["puff_time"]
         
         # Variable to track movement since last recycling
         self.distance_since_recycle: float = 0.0
@@ -897,11 +901,11 @@ class MousePortal(ShowBase):
         current_time = global_stopwatch.get_elapsed_time()
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.segments_with_stay_texture <= 5 and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + 2:
+            if self.segments_with_stay_texture <= self.reward_distance and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
                 #print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
-            if self.segments_with_special_texture <= 5 and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + 2:
+            if self.segments_with_special_texture <= self.puff_distance and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
                 #print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:

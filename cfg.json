@@ -23,5 +23,9 @@
     "test_mode": false,
     "trial_data": "subject_data.txt",
     "probe_onset": 1.0,
-    "probe_duration": 1.0
+    "probe_duration": 1.0,
+    "reward_distance": 5,
+    "puff_distance": 5,
+    "reward_time": 2,
+    "puff_time": 2
 }
