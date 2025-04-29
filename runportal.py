@@ -35,7 +35,7 @@ from dataclasses import dataclass
 
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog
+from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog, GraphicsPipe
 from direct.showbase import DirectObject
 from stopwatch import Stopwatch
 from direct.fsm.FSM import FSM
@@ -734,13 +734,19 @@ class MousePortal(ShowBase):
         with open(config_file, 'r') as f:
             self.cfg: Dict[str, Any] = load_config(config_file)
 
-        # Set window properties
+        # Get the display width and height for both monitors
+        pipe = self.win.getPipe()
+        display_width = pipe.getDisplayWidth()
+        display_height = pipe.getDisplayHeight()
+
+        # Set window properties to span across both monitors
         wp = WindowProperties()
-        wp.setSize(self.cfg["window_width"], self.cfg["window_height"])
+        wp.setSize(display_width * 2, display_height)  # Double the width for two monitors
+        wp.setOrigin(0, 0)  # Start at the leftmost edge
+        wp.setFullscreen(False)  # Ensure it's not in fullscreen mode
         self.setFrameRateMeter(False)
         self.disableMouse()  # Disable default mouse-based camera control
         wp.setCursorHidden(True)
-        wp.setFullscreen(True)
         wp.setUndecorated(True)
         self.win.requestProperties(wp)
         
