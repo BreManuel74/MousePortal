@@ -40,6 +40,58 @@ from direct.showbase import DirectObject
 from stopwatch import Stopwatch
 from direct.fsm.FSM import FSM
 
+@dataclass
+class CapacitiveData:
+    """
+    Represents a single capacitive sensor reading.
+    """
+    capacitive_value: int
+
+    def __repr__(self):
+        return f"CapacitiveData(capacitive_value={self.capacitive_value})"
+
+
+class CapacitiveSensorLogger(DirectObject.DirectObject):
+    """
+    Logs capacitive sensor data to a CSV file.
+    """
+    def __init__(self, filename: str) -> None:
+        """
+        Initialize the capacitive sensor logger.
+
+        Args:
+            filename (str): Path to the CSV file.
+        """
+        self.filename = filename
+        self.fieldnames = ['timestamp', 'capacitive_value']
+        file_exists = os.path.isfile(self.filename)
+        self.file = open(self.filename, 'a', newline='')
+        self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
+        if not file_exists:
+            self.writer.writeheader()
+
+        # Listen for capacitive data events
+        self.accept('readCapacitive', self.log)
+
+    def log(self, data: CapacitiveData) -> None:
+        """
+        Log the capacitive sensor data to the CSV file.
+
+        Args:
+            data (CapacitiveData): The capacitive sensor data to log.
+        """
+        self.writer.writerow({
+            'timestamp': int(time.time()),  # Current timestamp
+            'capacitive_value': data.capacitive_value
+        })
+        self.file.flush()
+
+    def close(self) -> None:
+        """
+        Close the CSV file.
+        """
+        self.file.close()
+
 # Generate 250 random samples from a normal distribution
 gaussian_data = np.random.normal(loc=25, scale=5, size=250)
 rounded_gaussian_data = np.round(gaussian_data)
@@ -117,6 +169,7 @@ class DataLogger:
 
     def close(self):
         self.file.close()
+
 
 class Corridor:
     """
@@ -492,16 +545,20 @@ class SerialInputManager(DirectObject.DirectObject):
     Manages serial input via the pyserial interface.
     
     This class abstracts the serial connection and starts a thread that listens
-    for serial data.
+    for serial data from the Teensy Board and Arduino.
     """
-    def __init__(self, serial_port: str, baudrate: int = 57600, messenger: DirectObject = None, test_mode: bool = False) -> None:
-        self._port = serial_port
-        self._baud = baudrate
+    def __init__(self, teensy_port: str, teensy_baudrate: int = 57600, 
+                 arduino_serial: serial.Serial = None, 
+                 messenger: DirectObject = None, test_mode: bool = False) -> None:
+        self.teensy_port = teensy_port
+        self.teensy_baudrate = teensy_baudrate
+        self.arduino_serial = arduino_serial  # Use the shared instance
         self.test_mode = test_mode
         self.test_file = None
         self.test_reader = None
         self.test_data = None
 
+        # Initialize Teensy connection
         if self.test_mode:
             try:
                 self.test_file = open('test.csv', 'r')
@@ -512,20 +569,25 @@ class SerialInputManager(DirectObject.DirectObject):
                 raise
         else:
             try:
-                self.serial = serial.Serial(self._port, self._baud, timeout=1)
+                self.teensy_serial = serial.Serial(self.teensy_port, self.teensy_baudrate, timeout=1)
             except serial.SerialException as e:
-                print(f"{self.__class__}: I failed to open serial port {self._port}: {e}")
+                print(f"{self.__class__}: Failed to open Teensy serial port {self.teensy_port}: {e}")
                 raise
 
         self.accept('readSerial', self._store_data)
+        self.accept('readCapacitive', self._store_capacitive_data)
         self.data = EncoderData(0, 0.0, 0.0)
+        self.capacitive_data = CapacitiveData(0)
         self.messenger = messenger
 
     def _store_data(self, data: EncoderData):
         self.data = data
 
+    def _store_capacitive_data(self, data: CapacitiveData):
+        self.capacitive_data = data
+
     def _read_serial(self, task: Task) -> Task:
-        """Internal loop for continuously reading lines from the serial port or test.csv."""
+        """Internal loop for continuously reading lines from the Teensy and Arduino."""
         if self.test_mode:
             try:
                 line = next(self.test_reader)
@@ -539,20 +601,35 @@ class SerialInputManager(DirectObject.DirectObject):
                 self.test_reader = csv.reader(self.test_file)
                 next(self.test_reader)  # Skip header
         else:
-            # Read a line from the Teensy board
-            raw_line = self.serial.readline()
-            # Decode and strip newline characters
-            line = raw_line.decode('utf-8', errors='replace').strip()
-            if line:
-                data = self._parse_line(line)
-                if data:
-                    self.messenger.send("readSerial", [data])
+            # Read from Teensy
+            if self.teensy_serial:
+                raw_line = self.teensy_serial.readline()
+                line = raw_line.decode('utf-8', errors='replace').strip()
+                if line:
+                    data = self._parse_line(line)
+                    if data:
+                        self.messenger.send("readSerial", [data])
+
+            # Read from Arduino (if connected)
+            if self.arduino_serial:
+                raw_line = self.arduino_serial.readline()
+                line = raw_line.decode('utf-8', errors='replace').strip()
+                try:
+                    # Attempt to parse the line as an integer
+                    capacitive_value = int(line)
+                    # Wrap the value in a CapacitiveData object
+                    capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
+                    self.messenger.send("readCapacitive", [capacitive_data])
+                    #print("Parsed capacitive data:", capacitive_data)
+                except ValueError:
+                    # Ignore lines that are not valid integers
+                    print("Invalid capacitive data:", line)
 
         return Task.cont
 
     def _parse_line(self, line: str):
         """
-        Parse a line of serial output.
+        Parse a line of serial output from the Teensy.
 
         Expected line formats:
           - "timestamp,distance,speed"  or
@@ -584,33 +661,34 @@ class SerialInputManager(DirectObject.DirectObject):
             # Non-numeric data (e.g., header info)
             return None
 
-    def _parse_line_from_csv(self, line: list):
-            """
-            Parse a line from the test.csv file.
-    
-            Expected line format:
-            - "timestamp,distance,speed"
-    
-            Args:
-                line (list): A single line from the CSV file.
-    
-            Returns:
-                EncoderData: An instance with parsed values, or None if parsing fails.
-            """
-            try:
-                timestamp = int(line[0].strip())
-                distance = float(line[1].strip())
-                speed = float(line[2].strip())
-                return EncoderData(distance=distance, speed=speed, timestamp=timestamp)
-            except ValueError:
-                # Non-numeric data (e.g., header info)
-                return None
-    
+    def _parse_capacitive_line(self, line: str):
+        """
+        Parse a line of capacitive sensor data from the Arduino.
+
+        Expected line format:
+          - A single integer value.
+
+        Args:
+            line (str): A single line from the serial port.
+
+        Returns:
+            CapacitiveData: An instance with the parsed integer value, or None if parsing fails.
+        """
+        try:
+            capacitive_value = int(line.strip())  # Attempt to parse the line as an integer
+            return CapacitiveData(capacitive_value=capacitive_value)
+        except ValueError:
+            # If the line is not a valid integer, return None
+            print("no data")
+
     def close(self):
         if self.test_mode and self.test_file:
             self.test_file.close()
-        elif not self.test_mode and self.serial:
-            self.serial.close()
+        if not self.test_mode:
+            if self.teensy_serial:
+                self.teensy_serial.close()
+            if self.arduino_serial:
+                self.arduino_serial.close()
 
 class SerialOutputManager(DirectObject.DirectObject):
     """
@@ -619,15 +697,8 @@ class SerialOutputManager(DirectObject.DirectObject):
     This class abstracts the serial connection and provides methods to send output signals
     based on input from the FSM class.
     """
-    def __init__(self, arduino_port: str, arduino_baudrate: int) -> None:
-        self._port = arduino_port
-        self._baud = arduino_baudrate
-        
-        try:
-            self.serial = serial.Serial(self._port, self._baud, timeout=1)
-        except serial.SerialException as e:
-            print(f"{self.__class__}: I failed to open serial port {self._port}: {e}")
-            raise
+    def __init__(self, arduino_serial: serial.Serial) -> None:
+        self.serial = arduino_serial  # Use the shared instance
 
     def send_signal(self, signal: str) -> None:
         """
@@ -766,17 +837,25 @@ class MousePortal(ShowBase):
         self.accept("arrow_down-up", self.set_key, ["backward", False])
         self.accept('escape', self.userExit)
 
+        # Set up shared Arduino serial connection
+        self.arduino_serial = serial.Serial(
+            self.cfg["arduino_port"],
+            self.cfg["arduino_baudrate"],
+            timeout=1
+        )
+
         # Set up treadmill input
         self.treadmill = SerialInputManager(
-            serial_port=self.cfg["serial_port"],
+            teensy_port=self.cfg["teensy_port"],
+            teensy_baudrate=self.cfg["teensy_baudrate"],
+            arduino_serial=self.arduino_serial,  # Pass the shared instance
             messenger=self.messenger,
             test_mode=self.cfg.get("test_mode", False)
         )
 
         # Set up serial output to Arduino
         self.serial_output = SerialOutputManager(
-            arduino_port=self.cfg["arduino_port"],
-            arduino_baudrate=self.cfg["arduino_baudrate"]
+            arduino_serial=self.arduino_serial  # Pass the shared instance
         )
 
         # Create corridor geometry
@@ -798,6 +877,7 @@ class MousePortal(ShowBase):
         
         # Initialize data logger
         self.data_logger = DataLogger(self.cfg["data_logging_file"])
+        self.capacitive_logger = CapacitiveSensorLogger(self.cfg["capacitive_logging_file"])
 
         # Add the update task
         self.taskMgr.add(self.update, "updateTask")
@@ -922,6 +1002,14 @@ class MousePortal(ShowBase):
                 self.fsm.request('Neutral')
         
         return Task.cont
+
+    def close(self):
+        if self.arduino_serial and self.arduino_serial.is_open:
+            self.arduino_serial.close()
+        if self.treadmill:
+            self.treadmill.close()
+        if self.serial_output:
+            self.serial_output.close()
 
 if __name__ == "__main__":
     app = MousePortal("cfg.json")
