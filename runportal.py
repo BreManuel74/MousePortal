@@ -586,45 +586,73 @@ class SerialInputManager(DirectObject.DirectObject):
     def _store_capacitive_data(self, data: CapacitiveData):
         self.capacitive_data = data
 
-    def _read_serial(self, task: Task) -> Task:
-        """Internal loop for continuously reading lines from the Teensy and Arduino."""
-        if self.test_mode:
+    # def _read_serial(self, task: Task) -> Task:
+    #     """Internal loop for continuously reading lines from the Teensy and Arduino."""
+    #     if self.test_mode:
+    #         try:
+    #             line = next(self.test_reader)
+    #             if line:
+    #                 data = self._parse_line_from_csv(line)
+    #                 if data:
+    #                     self.messenger.send("readSerial", [data])
+    #         except StopIteration:
+    #             # Restart the test file reading from the beginning
+    #             self.test_file.seek(0)
+    #             self.test_reader = csv.reader(self.test_file)
+    #             next(self.test_reader)  # Skip header
+    #     else:
+    #         # Read from Teensy
+    #         if self.teensy_serial:
+    #             raw_line = self.teensy_serial.readline()
+    #             line = raw_line.decode('utf-8', errors='replace').strip()
+    #             if line:
+    #                 data = self._parse_line(line)
+    #                 if data:
+    #                     self.messenger.send("readSerial", [data])
+
+    #         # Read from Arduino (if connected)
+    #         if self.arduino_serial:
+    #             raw_line = self.arduino_serial.readline()
+    #             line = raw_line.decode('utf-8', errors='replace').strip()
+    #             try:
+    #                 # Attempt to parse the line as an integer
+    #                 capacitive_value = int(line)
+    #                 # Wrap the value in a CapacitiveData object
+    #                 capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
+    #                 self.messenger.send("readCapacitive", [capacitive_data])
+    #                 #print("Parsed capacitive data:", capacitive_data)
+    #             except ValueError:
+    #                 # Ignore lines that are not valid integers
+    #                 print("Invalid capacitive data:", line)
+
+    #     return Task.cont
+
+    def _read_teensy_serial(self, task: Task) -> Task:
+        """Internal loop for continuously reading lines from the Teensy."""
+        if self.teensy_serial:
+            raw_line = self.teensy_serial.readline()
+            line = raw_line.decode('utf-8', errors='replace').strip()
+            if line:
+                data = self._parse_line(line)
+                if data:
+                    self.messenger.send("readSerial", [data])
+        return Task.cont
+
+    def _read_arduino_serial(self, task: Task) -> Task:
+        """Internal loop for continuously reading lines from the Arduino."""
+        if self.arduino_serial:
+            raw_line = self.arduino_serial.readline()
+            line = raw_line.decode('utf-8', errors='replace').strip()
             try:
-                line = next(self.test_reader)
-                if line:
-                    data = self._parse_line_from_csv(line)
-                    if data:
-                        self.messenger.send("readSerial", [data])
-            except StopIteration:
-                # Restart the test file reading from the beginning
-                self.test_file.seek(0)
-                self.test_reader = csv.reader(self.test_file)
-                next(self.test_reader)  # Skip header
-        else:
-            # Read from Teensy
-            if self.teensy_serial:
-                raw_line = self.teensy_serial.readline()
-                line = raw_line.decode('utf-8', errors='replace').strip()
-                if line:
-                    data = self._parse_line(line)
-                    if data:
-                        self.messenger.send("readSerial", [data])
-
-            # Read from Arduino (if connected)
-            if self.arduino_serial:
-                raw_line = self.arduino_serial.readline()
-                line = raw_line.decode('utf-8', errors='replace').strip()
-                try:
-                    # Attempt to parse the line as an integer
-                    capacitive_value = int(line)
-                    # Wrap the value in a CapacitiveData object
-                    capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
-                    self.messenger.send("readCapacitive", [capacitive_data])
-                    #print("Parsed capacitive data:", capacitive_data)
-                except ValueError:
-                    # Ignore lines that are not valid integers
-                    print("Invalid capacitive data:", line)
-
+                # Attempt to parse the line as an integer
+                capacitive_value = int(line)
+                # Wrap the value in a CapacitiveData object
+                capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
+                self.messenger.send("readCapacitive", [capacitive_data])
+                #print("Parsed capacitive data:", capacitive_data)
+            except ValueError:
+                # Ignore lines that are not valid integers
+                print("Invalid capacitive data:", line)
         return Task.cont
 
     def _parse_line(self, line: str):
@@ -891,7 +919,7 @@ class MousePortal(ShowBase):
         
         # Set up task chain for serial input
         self.taskMgr.setupTaskChain(
-            "serialInputDevice",
+            "teensySerialInput",
             numThreads=1,
             tickClock=None,
             threadPriority=None,
@@ -899,7 +927,17 @@ class MousePortal(ShowBase):
             frameSync=True,
             timeslicePriority=None
         )
-        self.taskMgr.add(self.treadmill._read_serial, name="readSerial")
+        self.taskMgr.setupTaskChain(
+            "arduinoSerialInput",
+            numThreads=1,
+            tickClock=None,
+            threadPriority=None,
+            frameBudget=None,
+            frameSync=True,
+            timeslicePriority=None
+        )
+        self.taskMgr.add(self.treadmill._read_teensy_serial, name="readTeensySerial", taskChain="teensySerialInput")
+        self.taskMgr.add(self.treadmill._read_arduino_serial, name="readArduinoSerial", taskChain="arduinoSerialInput")
 
         # Enable verbose messaging
         #self.messenger.toggleVerbose()
