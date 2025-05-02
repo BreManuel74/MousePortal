@@ -586,47 +586,6 @@ class SerialInputManager(DirectObject.DirectObject):
     def _store_capacitive_data(self, data: CapacitiveData):
         self.capacitive_data = data
 
-    # def _read_serial(self, task: Task) -> Task:
-    #     """Internal loop for continuously reading lines from the Teensy and Arduino."""
-    #     if self.test_mode:
-    #         try:
-    #             line = next(self.test_reader)
-    #             if line:
-    #                 data = self._parse_line_from_csv(line)
-    #                 if data:
-    #                     self.messenger.send("readSerial", [data])
-    #         except StopIteration:
-    #             # Restart the test file reading from the beginning
-    #             self.test_file.seek(0)
-    #             self.test_reader = csv.reader(self.test_file)
-    #             next(self.test_reader)  # Skip header
-    #     else:
-    #         # Read from Teensy
-    #         if self.teensy_serial:
-    #             raw_line = self.teensy_serial.readline()
-    #             line = raw_line.decode('utf-8', errors='replace').strip()
-    #             if line:
-    #                 data = self._parse_line(line)
-    #                 if data:
-    #                     self.messenger.send("readSerial", [data])
-
-    #         # Read from Arduino (if connected)
-    #         if self.arduino_serial:
-    #             raw_line = self.arduino_serial.readline()
-    #             line = raw_line.decode('utf-8', errors='replace').strip()
-    #             try:
-    #                 # Attempt to parse the line as an integer
-    #                 capacitive_value = int(line)
-    #                 # Wrap the value in a CapacitiveData object
-    #                 capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
-    #                 self.messenger.send("readCapacitive", [capacitive_data])
-    #                 #print("Parsed capacitive data:", capacitive_data)
-    #             except ValueError:
-    #                 # Ignore lines that are not valid integers
-    #                 print("Invalid capacitive data:", line)
-
-    #     return Task.cont
-
     def _read_teensy_serial(self, task: Task) -> Task:
         """Internal loop for continuously reading lines from the Teensy."""
         if self.teensy_serial:
@@ -651,8 +610,7 @@ class SerialInputManager(DirectObject.DirectObject):
                 self.messenger.send("readCapacitive", [capacitive_data])
                 #print("Parsed capacitive data:", capacitive_data)
             except ValueError:
-                # Ignore lines that are not valid integers
-                print("Invalid capacitive data:", line)
+                pass  # Ignore non-integer lines
         return Task.cont
 
     def _parse_line(self, line: str):
@@ -728,15 +686,18 @@ class SerialOutputManager(DirectObject.DirectObject):
     def __init__(self, arduino_serial: serial.Serial) -> None:
         self.serial = arduino_serial  # Use the shared instance
 
-    def send_signal(self, signal: str) -> None:
+    def send_signal(self, signal: Any) -> None:
         """
         Send a signal to the Arduino.
         
         Parameters:
-            signal (str): The signal to send, e.g., 'reward' or 'puff'.
+            signal (Any): The signal to send, e.g., 'reward', 'puff', or an integer.
         """
         if self.serial.is_open:
-            self.serial.write(signal.encode('utf-8'))
+            if isinstance(signal, int):
+                self.serial.write(bytes([signal]))  # Send as a single byte
+            else:
+                self.serial.write(signal.encode('utf-8'))  # Send as a string
             #print(f"Sent signal: {signal}")
         else:
             print("Arduino serial port is not open.")
@@ -773,7 +734,7 @@ class RewardOrPuff(FSM):
         """
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse puffed at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal('puff\n')
+        self.base.serial_output.send_signal(1)  # Send integer 1
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
@@ -785,7 +746,7 @@ class RewardOrPuff(FSM):
     def enterReward(self):
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse rewarded at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal('reward\n')
+        self.base.serial_output.send_signal(2)
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitReward(self):
@@ -1026,11 +987,11 @@ class MousePortal(ShowBase):
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
             if self.segments_with_stay_texture <= self.reward_distance and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
-                #print("Requesting Reward state")
+                print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
             if self.segments_with_special_texture <= self.puff_distance and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
-                #print("Requesting Puff state")
+                print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
             self.segments_with_special_texture = 0 
