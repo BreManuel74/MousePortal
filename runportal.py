@@ -81,7 +81,7 @@ class CapacitiveSensorLogger(DirectObject.DirectObject):
             data (CapacitiveData): The capacitive sensor data to log.
         """
         self.writer.writerow({
-            'timestamp': int(time.time()),  # Current timestamp
+            'timestamp': round(global_stopwatch.get_elapsed_time(), 2),  # Elapsed time from the global stopwatch
             'capacitive_value': data.capacitive_value
         })
         self.file.flush()
