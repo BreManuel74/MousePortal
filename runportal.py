@@ -152,23 +152,23 @@ class CapacitiveSensorLogger(DirectObject.DirectObject):
         self.file.close()
 
 @dataclass
-class EncoderData:
+class TreadmillData:
     """ Represents a single encoder reading."""
     timestamp: int
     distance: float
     speed: float
 
     def __repr__(self):
-        return (f"EncoderData(timestamp={self.timestamp}, "
+        return (f"TreadmillData(timestamp={self.timestamp}, "
                 f"distance={self.distance:.3f} mm, speed={self.speed:.3f} mm/s)")
 
-class DataLogger:
+class TreadmillLogger:
     """
     Logs movement data to a CSV file.
     """
     def __init__(self, filename):
         """
-        Initialize the data logger.
+        Initialize the treadmill logger.
         
         Args:
             filename (str): Path to the CSV file.
@@ -181,7 +181,7 @@ class DataLogger:
         if not file_exists:
             self.writer.writeheader()
 
-    def log(self, data: EncoderData):
+    def log(self, data: TreadmillData):
         self.writer.writerow({'timestamp': data.timestamp, 'distance': data.distance, 'speed': data.speed})
         self.file.flush()
 
@@ -602,11 +602,11 @@ class SerialInputManager(DirectObject.DirectObject):
 
         self.accept('readSerial', self._store_data)
         self.accept('readCapacitive', self._store_capacitive_data)
-        self.data = EncoderData(0, 0.0, 0.0)
+        self.data = TreadmillData(0, 0.0, 0.0)
         self.capacitive_data = CapacitiveData(0)
         self.messenger = messenger
 
-    def _store_data(self, data: EncoderData):
+    def _store_data(self, data: TreadmillData):
         self.data = data
 
     def _store_capacitive_data(self, data: CapacitiveData):
@@ -651,7 +651,7 @@ class SerialInputManager(DirectObject.DirectObject):
             line (str): A single line from the serial port.
 
         Returns:
-            EncoderData: An instance with parsed values, or None if parsing fails.
+            Treadmilldata: An instance with parsed values, or None if parsing fails.
         """
         parts = line.split(',')
         try:
@@ -660,12 +660,12 @@ class SerialInputManager(DirectObject.DirectObject):
                 timestamp = int(parts[0].strip())
                 distance = float(parts[1].strip())
                 speed = float(parts[2].strip())
-                return EncoderData(distance=distance, speed=speed, timestamp=timestamp)
+                return TreadmillData(distance=distance, speed=speed, timestamp=timestamp)
             elif len(parts) == 2:
                 # Format: distance, speed
                 distance = float(parts[0].strip())
                 speed = float(parts[1].strip())
-                return EncoderData(distance=distance, speed=speed)
+                return TreadmillData(distance=distance, speed=speed)
             else:
                 # Likely a header or message line (non-data)
                 return None
@@ -896,6 +896,7 @@ class MousePortal(ShowBase):
             rounded_stay_data=self.rounded_stay_data,
             rounded_go_data=self.rounded_go_data
         )
+        self.segment_length: float = self.cfg["segment_length"]
         
         # Initialize the RewardOrPuff FSM
         self.fsm = RewardOrPuff(self, self.cfg)
@@ -909,8 +910,8 @@ class MousePortal(ShowBase):
         # Movement speed (units per second)
         self.movement_speed: float = 10.0
         
-        # Initialize data logger
-        self.data_logger = DataLogger(self.cfg["data_logging_file"])
+        # Initialize treadmill logger
+        self.treadmill_logger = TreadmillLogger(self.cfg["treadmill_logging_file"])
         self.capacitive_logger = CapacitiveSensorLogger(self.cfg["capacitive_logging_file"])
 
         # Add the update task
@@ -1021,7 +1022,7 @@ class MousePortal(ShowBase):
                 self.distance_since_recycle += self.segment_length
 
         # Log movement data (timestamp, distance, speed)
-        self.data_logger.log(self.treadmill.data)
+        self.treadmill_logger.log(self.treadmill.data)
 
         # FSM state transition logic
         # Dynamically get the current texture of the left wall
