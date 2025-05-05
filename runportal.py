@@ -40,6 +40,66 @@ from direct.showbase import DirectObject
 from stopwatch import Stopwatch
 from direct.fsm.FSM import FSM
 
+# Create a global stopwatch instance
+global_stopwatch = Stopwatch()
+
+def load_config(config_file: str) -> Dict[str, Any]:
+    """
+    Load configuration parameters from a JSON file.
+    
+    Parameters:
+        config_file (str): Path to the configuration file.
+        
+    Returns:
+        dict: Configuration parameters.
+    """
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+        return config
+    except Exception as e:
+        print(f"Error loading config file {config_file}: {e}")
+        sys.exit(1)
+
+class DataGenerator:
+    """
+    A class to generate Gaussian data based on configuration parameters.
+    """
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """
+        Initialize the DataGenerator with configuration.
+
+        Args:
+            config (dict): Configuration dictionary containing Gaussian parameters.
+        """
+        self.config = config
+
+    def generate_gaussian_data(self, key: str, size: int = 250, min_value: float = None) -> np.ndarray:
+        """
+        Generate Gaussian data based on the configuration.
+
+        Args:
+            key (str): The key in the configuration for the Gaussian parameters.
+            size (int): The number of samples to generate.
+            min_value (float): Minimum value to accept (optional).
+
+        Returns:
+            np.ndarray: Rounded Gaussian data.
+        """
+        loc = self.config[key]["loc"]
+        scale = self.config[key]["scale"]
+
+        if min_value is not None:
+            data = []
+            while len(data) < size:
+                sample = np.random.normal(loc=loc, scale=scale)
+                if sample >= min_value:
+                    data.append(sample)
+            return np.round(data)
+        else:
+            data = np.random.normal(loc=loc, scale=scale, size=size)
+            return np.round(data)
+        
 @dataclass
 class CapacitiveData:
     """
@@ -91,47 +151,6 @@ class CapacitiveSensorLogger(DirectObject.DirectObject):
         """
         self.file.close()
 
-# Generate 250 random samples from a normal distribution
-gaussian_data = np.random.normal(loc=25, scale=5, size=250)
-rounded_gaussian_data = np.round(gaussian_data)
-
-# Generate 250 random samples from a normal distribution for stay_gaussian_data
-stay_gaussian_data = []
-while len(stay_gaussian_data) < 250:
-    sample = np.random.normal(loc=7, scale=2)
-    if sample >= 1:  # Only accept values >= 1
-        stay_gaussian_data.append(sample)
-rounded_stay_data = np.round(stay_gaussian_data)
-
-# Generate 250 random samples from a normal distribution for go_gaussian_data
-go_gaussian_data = []
-while len(go_gaussian_data) < 250:
-    sample = np.random.normal(loc=30, scale=2)
-    if sample >= 1:  # Only accept values >= 1
-        go_gaussian_data.append(sample)
-rounded_go_data = np.round(go_gaussian_data)
-
-# Create a global stopwatch instance
-global_stopwatch = Stopwatch()
-
-def load_config(config_file: str) -> Dict[str, Any]:
-    """
-    Load configuration parameters from a JSON file.
-    
-    Parameters:
-        config_file (str): Path to the configuration file.
-        
-    Returns:
-        dict: Configuration parameters.
-    """
-    try:
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        print(f"Error loading config file {config_file}: {e}")
-        sys.exit(1)
-
 @dataclass
 class EncoderData:
     """ Represents a single encoder reading."""
@@ -170,18 +189,26 @@ class DataLogger:
         self.file.close()
 
 class Corridor:
-    """
-    Class for generating infinite corridor geometric rendering
-    """
-    def __init__(self, base: ShowBase, config: Dict[str, Any]) -> None:
+    def __init__(self, base: ShowBase, config: Dict[str, Any],
+                 rounded_gaussian_data: np.ndarray,
+                 rounded_stay_data: np.ndarray,
+                 rounded_go_data: np.ndarray) -> None:
         """
         Initialize the corridor by creating segments for each face.
         
         Parameters:
             base (ShowBase): The Panda3D base instance.
             config (dict): Configuration parameters.
+            rounded_gaussian_data (np.ndarray): Gaussian data for texture changes.
+            rounded_stay_data (np.ndarray): Gaussian data for stay textures.
+            rounded_go_data (np.ndarray): Gaussian data for go textures.
         """
         self.base = base
+        self.config = config
+        self.rounded_gaussian_data = rounded_gaussian_data
+        self.rounded_stay_data = rounded_stay_data
+        self.rounded_go_data = rounded_go_data
+
         self.segment_length: float = config["segment_length"]
         self.corridor_width: float = config["corridor_width"]
         self.wall_height: float = config["wall_height"]
@@ -368,9 +395,9 @@ class Corridor:
         
         # Determine the stay_or_go_data based on the selected texture
         if selected_texture == self.special_wall:
-            stay_or_go_data = rounded_go_data
+            stay_or_go_data = self.rounded_go_data
         else:
-            stay_or_go_data = rounded_stay_data
+            stay_or_go_data = self.rounded_stay_data
         
         # Set the counter for segments to revert textures using a random value from stay_or_go_data
         self.segments_until_revert = int(random.choice(stay_or_go_data))
@@ -475,7 +502,7 @@ class Corridor:
             self.segments_until_revert = 0
 
         # Randomly determine the number of segments after which to change the texture
-        segments_to_wait = random.choice(rounded_gaussian_data)
+        segments_to_wait = random.choice(self.rounded_gaussian_data)
         
         # Write the selected number of segments to the subject_data.txt file
         with open(self.trial_data, "a") as f:
@@ -853,9 +880,22 @@ class MousePortal(ShowBase):
             arduino_serial=self.arduino_serial  # Pass the shared instance
         )
 
-        # Create corridor geometry
-        self.corridor: Corridor = Corridor(self, self.cfg)
-        self.segment_length: float = self.cfg["segment_length"]
+        # Initialize the DataGenerator
+        data_generator = DataGenerator(self.cfg)
+
+        # Generate Gaussian data
+        self.rounded_gaussian_data = data_generator.generate_gaussian_data("gaussian_data")
+        self.rounded_stay_data = data_generator.generate_gaussian_data("stay_gaussian_data", min_value=1)
+        self.rounded_go_data = data_generator.generate_gaussian_data("go_gaussian_data", min_value=1)
+
+        # Create corridor geometry and pass Gaussian data
+        self.corridor: Corridor = Corridor(
+            base=self,
+            config=self.cfg,
+            rounded_gaussian_data=self.rounded_gaussian_data,
+            rounded_stay_data=self.rounded_stay_data,
+            rounded_go_data=self.rounded_go_data
+        )
         
         # Initialize the RewardOrPuff FSM
         self.fsm = RewardOrPuff(self, self.cfg)
