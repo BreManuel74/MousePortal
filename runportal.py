@@ -374,6 +374,7 @@ class Corridor:
         
         # Set the counter for segments to revert textures using a random value from stay_or_go_data
         self.segments_until_revert = int(random.choice(stay_or_go_data))
+        self.base.zone_length = self.segments_until_revert
         
         # Write the segments_until_revert value to the trial_data file
         with open(self.trial_data, "a") as f:
@@ -701,7 +702,7 @@ class SerialOutputManager(DirectObject.DirectObject):
                     self.serial.write(f"{signal}".encode('utf-8'))
                 else:
                     raise ValueError("Unsupported signal type. Must be int or str.")
-                print(f"Sent signal: {signal}")
+               #print(f"Sent signal: {signal}")
             except Exception as e:
                 print(f"Failed to send signal: {e}")
         else:
@@ -858,11 +859,10 @@ class MousePortal(ShowBase):
         
         # Initialize the RewardOrPuff FSM
         self.fsm = RewardOrPuff(self, self.cfg)
-        self.reward_distance = self.cfg["reward_distance"]
-        self.puff_distance = self.cfg["puff_distance"]
         self.reward_time = self.cfg["reward_time"]
         self.puff_time = self.cfg["puff_time"]
-        
+        self.zone_length = 0
+
         # Variable to track movement since last recycling
         self.distance_since_recycle: float = 0.0
         
@@ -991,12 +991,14 @@ class MousePortal(ShowBase):
         current_time = global_stopwatch.get_elapsed_time()
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
-            if self.segments_with_stay_texture <= self.reward_distance and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
-                #print("Requesting Reward state")
+            #print(self.zone_length)
+            if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
+                print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
-            if self.segments_with_special_texture <= self.puff_distance and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
-                #print("Requesting Puff state")
+            #print(self.zone_length)
+            if self.segments_with_special_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
+                print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
             self.segments_with_special_texture = 0 
