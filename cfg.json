@@ -28,19 +28,19 @@
     "probe_duration": 1.0,
     "reward_time": 2,
     "puff_time": 2,
-    "gaussian_data": {
+    "base_hallway_distribution": {
         "loc": 25,
         "scale": 5
     },
-    "gaussian_data_min_value": 1,
-    "stay_gaussian_data": {
+    "base_hallway_min_value": 1,
+    "stay_zone_distribution": {
         "loc": 7,
         "scale": 2
     },
-    "stay_gaussian_data_min_value": 1,
-    "go_gaussian_data": {
+    "stay_zone_min_value": 1,
+    "go_zone_distribution": {
         "loc": 30,
         "scale": 2
     },
-    "go_gaussian_data_min_value": 1
+    "go_zone_min_value": 1
 }

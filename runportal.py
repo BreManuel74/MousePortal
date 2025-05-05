@@ -233,7 +233,7 @@ class TreadmillLogger:
 
 class Corridor:
     def __init__(self, base: ShowBase, config: Dict[str, Any],
-                 rounded_gaussian_data: np.ndarray,
+                 rounded_base_hallway_data: np.ndarray,
                  rounded_stay_data: np.ndarray,
                  rounded_go_data: np.ndarray) -> None:
         """
@@ -242,13 +242,13 @@ class Corridor:
         Parameters:
             base (ShowBase): The Panda3D base instance.
             config (dict): Configuration parameters.
-            rounded_gaussian_data (np.ndarray): Gaussian data for texture changes.
+            rounded_base_hallway_data (np.ndarray): Gaussian data for texture changes.
             rounded_stay_data (np.ndarray): Gaussian data for stay textures.
             rounded_go_data (np.ndarray): Gaussian data for go textures.
         """
         self.base = base
         self.config = config
-        self.rounded_gaussian_data = rounded_gaussian_data
+        self.rounded_base_hallway_data = rounded_base_hallway_data
         self.rounded_stay_data = rounded_stay_data
         self.rounded_go_data = rounded_go_data
 
@@ -270,7 +270,7 @@ class Corridor:
         # Write the rounded Gaussian data to subject_data.py
         with open(self.trial_data, "a") as f:
             f.write(
-                f"rounded_gaussian_data = {repr(rounded_gaussian_data.tolist())}\n"
+                f"rounded_base_hallway_data = {repr(rounded_base_hallway_data.tolist())}\n"
                 f"rounded_stay_data = {repr(rounded_stay_data.tolist())}\n"
                 f"rounded_go_data = {repr(rounded_go_data.tolist())}\n"
             )
@@ -545,7 +545,7 @@ class Corridor:
             self.segments_until_revert = 0
 
         # Randomly determine the number of segments after which to change the texture
-        segments_to_wait = random.choice(self.rounded_gaussian_data)
+        segments_to_wait = random.choice(self.rounded_base_hallway_data)
         
         # Write the selected number of segments to the subject_data.txt file
         with open(self.trial_data, "a") as f:
@@ -927,24 +927,24 @@ class MousePortal(ShowBase):
         data_generator = DataGenerator(self.cfg)
 
         # Generate Gaussian data using min_value from the configuration
-        self.rounded_gaussian_data = data_generator.generate_gaussian_data(
-            "gaussian_data", 
-            min_value=self.cfg["gaussian_data_min_value"]
+        self.rounded_base_hallway_data = data_generator.generate_gaussian_data(
+            "base_hallway_distribution", 
+            min_value=self.cfg["base_hallway_min_value"]
         )
         self.rounded_stay_data = data_generator.generate_gaussian_data(
-            "stay_gaussian_data", 
-            min_value=self.cfg["stay_gaussian_data_min_value"]
+            "stay_zone_distribution", 
+            min_value=self.cfg["stay_zone_min_value"]
         )
         self.rounded_go_data = data_generator.generate_gaussian_data(
-            "go_gaussian_data", 
-            min_value=self.cfg["go_gaussian_data_min_value"]
+            "go_zone_distribution", 
+            min_value=self.cfg["go_zone_min_value"]
         )
 
         # Create corridor geometry and pass Gaussian data
         self.corridor: Corridor = Corridor(
             base=self,
             config=self.cfg,
-            rounded_gaussian_data=self.rounded_gaussian_data,
+            rounded_base_hallway_data=self.rounded_base_hallway_data,
             rounded_stay_data=self.rounded_stay_data,
             rounded_go_data=self.rounded_go_data
         )
