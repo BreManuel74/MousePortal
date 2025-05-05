@@ -260,7 +260,7 @@ class Corridor:
         self.right_wall_texture: str = config["right_wall_texture"]
         self.ceiling_texture: str = config["ceiling_texture"]
         self.floor_texture: str = config["floor_texture"]
-        self.special_wall: str = config["special_wall"]
+        self.go_texture: str = config["go_texture"]
         self.alternative_wall_texture_1 = config["alternative_wall_texture_1"]
         self.alternative_wall_texture_2 = config["alternative_wall_texture_2"]
         self.trial_data = config["trial_data"]
@@ -414,7 +414,7 @@ class Corridor:
         """
         # Define a list of possible wall textures
         wall_textures = [
-            self.special_wall,  # Texture 1
+            self.go_texture,  # Texture 1
             self.alternative_wall_texture_2   # Texture 2
         ]
         
@@ -437,7 +437,7 @@ class Corridor:
             f.write(f"Wall texture changed. Elapsed time: {round(elapsed_time, 2)} seconds\n")
         
         # Determine the stay_or_go_data based on the selected texture
-        if selected_texture == self.special_wall:
+        if selected_texture == self.go_texture:
             stay_or_go_data = self.rounded_go_data
         else:
             stay_or_go_data = self.rounded_stay_data
@@ -562,9 +562,9 @@ class Corridor:
             # Trigger the texture change
             self.change_wall_textures(None)
             
-            # Check if the new texture is the special wall texture
+            # Check if the new texture is the go texture
             new_front_texture = self.left_segments[0].getTexture().getFilename()
-            if new_front_texture == self.special_wall:
+            if new_front_texture == self.go_texture:
                 # Update the enter_go_time in the MousePortal instance
                 self.base.enter_go_time = global_stopwatch.get_elapsed_time()
                 #print(f"enter_go_time updated to {self.base.enter_go_time:.2f} seconds")
@@ -993,7 +993,7 @@ class MousePortal(ShowBase):
         #self.messenger.toggleVerbose()
 
         # Add an attribute to track the number of segments passed for the FSM logic
-        self.segments_with_special_texture = 0
+        self.segments_with_go_texture = 0
         self.segments_with_stay_texture = 0
 
         # Add attributes to store time points
@@ -1051,9 +1051,9 @@ class MousePortal(ShowBase):
 
                 # Check if the new front segment has the stay or go textures
                 new_front_texture = self.corridor.left_segments[0].getTexture().getFilename()
-                if new_front_texture == self.corridor.special_wall:
-                    self.segments_with_special_texture += 1
-                    #print(f"New segment with special texture counted: {self.segments_with_special_texture}")
+                if new_front_texture == self.corridor.go_texture:
+                    self.segments_with_go_texture += 1
+                    #print(f"New segment with go texture counted: {self.segments_with_go_texture}")
                 elif new_front_texture == self.corridor.alternative_wall_texture_2:
                     self.segments_with_stay_texture += 1
                     #print(f"New segment with stay texture counted: {self.segments_with_stay_texture}")
@@ -1079,13 +1079,13 @@ class MousePortal(ShowBase):
             if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + (self.reward_time * self.zone_length):
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
-        elif selected_texture == self.corridor.special_wall:
+        elif selected_texture == self.corridor.go_texture:
             #print(self.zone_length)
-            if self.segments_with_special_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + (self.puff_time * self.zone_length):
+            if self.segments_with_go_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + (self.puff_time * self.zone_length):
                 print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
-            self.segments_with_special_texture = 0 
+            self.segments_with_go_texture = 0 
             self.segments_with_stay_texture = 0
             if self.fsm.state != 'Neutral':
                 #print("Requesting Neutral state")

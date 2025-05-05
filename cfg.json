@@ -19,7 +19,7 @@
     "arduino_port": "COM7",
     "arduino_baudrate": 115200,
     "teensy_baudrate": 57600,
-    "special_wall": "assets/go.png", 
+    "go_texture": "assets/go.png", 
     "alternative_wall_texture_1": "assets/neutral_stim.png",
     "alternative_wall_texture_2": "assets/stop_stim.jpg",
     "test_mode": false,
