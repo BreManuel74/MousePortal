@@ -926,10 +926,19 @@ class MousePortal(ShowBase):
         # Initialize the DataGenerator
         data_generator = DataGenerator(self.cfg)
 
-        # Generate Gaussian data
-        self.rounded_gaussian_data = data_generator.generate_gaussian_data("gaussian_data")
-        self.rounded_stay_data = data_generator.generate_gaussian_data("stay_gaussian_data", min_value=1)
-        self.rounded_go_data = data_generator.generate_gaussian_data("go_gaussian_data", min_value=1)
+        # Generate Gaussian data using min_value from the configuration
+        self.rounded_gaussian_data = data_generator.generate_gaussian_data(
+            "gaussian_data", 
+            min_value=self.cfg["gaussian_data_min_value"]
+        )
+        self.rounded_stay_data = data_generator.generate_gaussian_data(
+            "stay_gaussian_data", 
+            min_value=self.cfg["stay_gaussian_data_min_value"]
+        )
+        self.rounded_go_data = data_generator.generate_gaussian_data(
+            "go_gaussian_data", 
+            min_value=self.cfg["go_gaussian_data_min_value"]
+        )
 
         # Create corridor geometry and pass Gaussian data
         self.corridor: Corridor = Corridor(

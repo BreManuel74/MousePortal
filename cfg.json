@@ -32,12 +32,15 @@
         "loc": 25,
         "scale": 5
     },
+    "gaussian_data_min_value": 1,
     "stay_gaussian_data": {
         "loc": 7,
         "scale": 2
     },
+    "stay_gaussian_data_min_value": 1,
     "go_gaussian_data": {
         "loc": 30,
         "scale": 2
-    }
+    },
+    "go_gaussian_data_min_value": 1
 }
