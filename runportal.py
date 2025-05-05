@@ -992,12 +992,12 @@ class MousePortal(ShowBase):
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
             #print(self.zone_length)
-            if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
+            if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + (self.reward_time * self.zone_length):
                 print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
             #print(self.zone_length)
-            if self.segments_with_special_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
+            if self.segments_with_special_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + (self.puff_time * self.zone_length):
                 print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
