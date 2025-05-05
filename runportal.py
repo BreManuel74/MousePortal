@@ -50,7 +50,6 @@ class CapacitiveData:
     def __repr__(self):
         return f"CapacitiveData(capacitive_value={self.capacitive_value})"
 
-
 class CapacitiveSensorLogger(DirectObject.DirectObject):
     """
     Logs capacitive sensor data to a CSV file.
@@ -169,7 +168,6 @@ class DataLogger:
 
     def close(self):
         self.file.close()
-
 
 class Corridor:
     """
@@ -694,11 +692,18 @@ class SerialOutputManager(DirectObject.DirectObject):
             signal (Any): The signal to send, e.g., 'reward', 'puff', or an integer.
         """
         if self.serial.is_open:
-            if isinstance(signal, int):
-                self.serial.write(bytes([signal]))  # Send as a single byte
-            else:
-                self.serial.write(signal.encode('utf-8'))  # Send as a string
-            #print(f"Sent signal: {signal}")
+            try:
+                if isinstance(signal, int):
+                    # Send larger integers
+                    self.serial.write(str(signal).encode() + b"\n")
+                elif isinstance(signal, str):
+                    # Send strings as UTF-8 encoded bytes
+                    self.serial.write(f"{signal}".encode('utf-8'))
+                else:
+                    raise ValueError("Unsupported signal type. Must be int or str.")
+                print(f"Sent signal: {signal}")
+            except Exception as e:
+                print(f"Failed to send signal: {e}")
         else:
             print("Arduino serial port is not open.")
 
@@ -734,7 +739,7 @@ class RewardOrPuff(FSM):
         """
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse puffed at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal(1)  # Send integer 1
+        self.base.serial_output.send_signal(12500)
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
@@ -746,7 +751,7 @@ class RewardOrPuff(FSM):
     def enterReward(self):
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse rewarded at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal(2)
+        self.base.serial_output.send_signal(21000)
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitReward(self):
@@ -987,11 +992,11 @@ class MousePortal(ShowBase):
 
         if selected_texture == self.corridor.alternative_wall_texture_2:
             if self.segments_with_stay_texture <= self.reward_distance and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
-                print("Requesting Reward state")
+                #print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.special_wall:
             if self.segments_with_special_texture <= self.puff_distance and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + self.puff_time:
-                print("Requesting Puff state")
+                #print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
             self.segments_with_special_texture = 0 
