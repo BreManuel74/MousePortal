@@ -26,8 +26,9 @@
     "trial_data": "subject_data.txt",
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 2,
-    "puff_time": 2,
+    "reward_time": 0.1,
+    "puff_time": 0.1,
+    "puff_duration": 2500,
     "base_hallway_distribution": {
         "loc": 25,
         "scale": 5

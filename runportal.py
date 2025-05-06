@@ -772,7 +772,7 @@ class SerialOutputManager(DirectObject.DirectObject):
                     self.serial.write(f"{signal}".encode('utf-8'))
                 else:
                     raise ValueError("Unsupported signal type. Must be int or str.")
-               #print(f"Sent signal: {signal}")
+                print(f"Sent signal: {signal}")
             except Exception as e:
                 print(f"Failed to send signal: {e}")
         else:
@@ -800,6 +800,7 @@ class RewardOrPuff(FSM):
         self.base = base
         self.config = config
         self.trial_data = config["trial_data"]
+        self.puff_duration = config["puff_duration"]
         self.accept('puff-event', self.request, ['Puff'])
         self.accept('reward-event', self.request, ['Reward'])
         self.accept('neutral-event', self.request, ['Neutral'])
@@ -810,7 +811,9 @@ class RewardOrPuff(FSM):
         """
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse puffed at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal(12500)
+        # Combine 1 and puff_duration into a single integer
+        signal = int(f"1{self.puff_duration}")
+        self.base.serial_output.send_signal(signal)
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
