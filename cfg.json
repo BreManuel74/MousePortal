@@ -43,5 +43,6 @@
         "loc": 30,
         "scale": 2
     },
-    "go_zone_min_value": 1
+    "go_zone_min_value": 1,
+    "puff_to_neutral_time": 3.0
 }

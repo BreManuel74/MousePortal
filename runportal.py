@@ -801,6 +801,7 @@ class RewardOrPuff(FSM):
         self.config = config
         self.trial_data = config["trial_data"]
         self.puff_duration = config["puff_duration"]
+        self.puff_to_neutral_time = config["puff_to_neutral_time"]
         self.accept('puff-event', self.request, ['Puff'])
         self.accept('reward-event', self.request, ['Reward'])
         self.accept('neutral-event', self.request, ['Neutral'])
@@ -814,7 +815,7 @@ class RewardOrPuff(FSM):
         # Combine 1 and puff_duration into a single integer
         signal = int(f"1{self.puff_duration}")
         self.base.serial_output.send_signal(signal)
-        self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
+        self.base.taskMgr.doMethodLater(self.puff_to_neutral_time, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
         """
@@ -845,16 +846,20 @@ class RewardOrPuff(FSM):
 
     def _transitionToNeutral(self, task):
         """
-        Transition to the Neutral state only if the wall texture is the original wall texture.
+        Transition to the Neutral state.
+        - For the Reward state: Only transition if the wall texture is the original wall texture.
+        - For the Puff state: Transition directly without checking the wall texture.
         """
         # Get the current texture of the left wall
         current_texture = self.base.corridor.left_segments[0].getTexture().getFilename()
 
-        # Check if the current texture matches the original wall texture
-        if current_texture == self.base.corridor.left_wall_texture:
+        if self.state == 'Reward':
+            # Transition to Neutral only if the wall texture matches the original wall texture
+            if current_texture == self.base.corridor.left_wall_texture:
+                self.request('Neutral')
+        elif self.state == 'Puff':
+            # Transition to Neutral directly without checking the wall texture
             self.request('Neutral')
-        else:
-            pass
 
         return Task.done
 
