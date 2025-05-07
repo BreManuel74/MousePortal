@@ -466,9 +466,9 @@ class Corridor:
         """
         # Define a list of possible wall textures
         temporary_wall_textures = [
-            self.floor_texture,  # Texture 1
+            #self.floor_texture,  # Texture 1
             self.neutral_stim_1,   # Texture 2
-            self.ceiling_texture,  # Texture 3
+            #self.ceiling_texture,  # Texture 3
         ]
 
         # Randomly select a texture
@@ -626,6 +626,7 @@ class SerialInputManager(DirectObject.DirectObject):
         self.test_file = None
         self.test_reader = None
         self.test_data = None
+        self.teensy_serial = None
 
         # Initialize Teensy connection
         if self.test_mode:
@@ -656,8 +657,22 @@ class SerialInputManager(DirectObject.DirectObject):
         self.capacitive_data = data
 
     def _read_teensy_serial(self, task: Task) -> Task:
-        """Internal loop for continuously reading lines from the Teensy."""
-        if self.teensy_serial:
+        """Internal loop for continuously reading lines from the Teensy or test CSV file."""
+        if self.test_mode:
+            # Read data from the test CSV file
+            try:
+                line = next(self.test_reader)  # Get the next line from the CSV reader
+                if line:
+                    # Parse the line as if it were from the Teensy
+                    data = self._parse_line(','.join(line))
+                    if data:
+                        self.messenger.send("readSerial", [data])
+            except StopIteration:
+                # End of the CSV file; stop the task
+                print("End of test.csv reached.")
+                return Task.done
+        elif self.teensy_serial:
+            # Read data from the Teensy serial port
             raw_line = self.teensy_serial.readline()
             line = raw_line.decode('utf-8', errors='replace').strip()
             if line:
@@ -772,7 +787,7 @@ class SerialOutputManager(DirectObject.DirectObject):
                     self.serial.write(f"{signal}".encode('utf-8'))
                 else:
                     raise ValueError("Unsupported signal type. Must be int or str.")
-                print(f"Sent signal: {signal}")
+                #print(f"Sent signal: {signal}")
             except Exception as e:
                 print(f"Failed to send signal: {e}")
         else:
@@ -826,7 +841,7 @@ class RewardOrPuff(FSM):
     def enterReward(self):
         with open(self.trial_data, "a") as f:
             f.write(f"Mouse rewarded at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
-        self.base.serial_output.send_signal(21000)
+        self.base.serial_output.send_signal(2100)
         self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitReward(self):
@@ -1094,12 +1109,12 @@ class MousePortal(ShowBase):
         if selected_texture == self.corridor.stop_texture:
             #print(self.zone_length)
             if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + (self.reward_time * self.zone_length):
-                print("Requesting Reward state")
+                #print("Requesting Reward state")
                 self.fsm.request('Reward')
         elif selected_texture == self.corridor.go_texture:
             #print(self.zone_length)
             if self.segments_with_go_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + (self.puff_time * self.zone_length):
-                print("Requesting Puff state")
+                #print("Requesting Puff state")
                 self.fsm.request('Puff')
         else:
             self.segments_with_go_texture = 0 
