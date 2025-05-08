@@ -38,6 +38,7 @@ from direct.task import Task
 from panda3d.core import CardMaker, NodePath, Texture, WindowProperties, Fog, GraphicsPipe
 from direct.showbase import DirectObject
 from direct.fsm.FSM import FSM
+import pandas as pd
 
 class Stopwatch:
     """
@@ -878,6 +879,86 @@ class RewardOrPuff(FSM):
 
         return Task.done
 
+class RewardCalculator:
+    """
+    A new class that initializes with ShowBase and a configuration file.
+    """
+    def __init__(self, base: ShowBase, config: Dict[str, Any]) -> None:
+        """
+        Initialize the class with ShowBase and load the configuration.
+
+        Parameters:
+            base (ShowBase): The Panda3D base instance.
+            config (Dict[str, Any]): Configuration dictionary.
+        """
+        self.base = base
+        self.config = config
+        self.reward_file = config["reward_file"]
+
+    def read_csv_to_dataframe(self) -> pd.DataFrame:
+        """
+        Read the reward CSV file (specified by the reward_file attribute) and load its contents into a pandas DataFrame.
+
+        Returns:
+            pd.DataFrame: The loaded DataFrame.
+        """
+        try:
+            df = pd.read_csv(self.reward_file)  # Use the reward_file attribute as the path
+            return df
+        except Exception as e:
+            print(f"Error reading CSV file {self.reward_file}: {e}")
+            return pd.DataFrame()  # Return an empty DataFrame on failure
+
+    def extract_linear_data(self) -> pd.DataFrame:
+        """
+        Extract the y = mx + b data from the DataFrame.
+
+        Assumes the CSV file has columns: 'dt', 'w', 'dw', 'b0', 'b1',
+        where 'b0' is the slope (m) and 'b1' is the y-intercept (b).
+
+        Returns:
+            pd.DataFrame: A DataFrame with renamed columns. 
+        """
+        try:
+            df = self.read_csv_to_dataframe()
+            if {'dt', 'w', 'dw', 'b0', 'b1'}.issubset(df.columns):
+                # Rename the columns
+                df = df.rename(columns={
+                    'dt': 'time',
+                    'w': 'water_volumes',
+                    'dw': 'delta_water_volumes',
+                    'b0': 'slope',
+                    'b1': 'intercept'
+                })
+                return df[['time', 'water_volumes', 'delta_water_volumes', 'slope', 'intercept']]
+            else:
+                print("CSV file does not contain the required columns: 'dt', 'w', 'dw', 'b0', 'b1'.")
+                return pd.DataFrame()  # Return an empty DataFrame if columns are missing
+        except Exception as e:
+            print(f"Error extracting linear data: {e}")
+            return pd.DataFrame()  # Return an empty DataFrame on failure
+        
+    def calculate_x(self, y: float, slope: float, intercept: float) -> float:
+        """
+        Calculate the x value for a given y using the linear equation y = mx + b.
+
+        Parameters:
+            y (float): The y value (reward amount) to plug into the equation.
+            slope (float): The slope (m) of the line.
+            intercept (float): The y-intercept (b) of the line.
+
+        Returns:
+            float: The calculated x value.
+        """
+        try:
+            if slope == 0:
+                raise ValueError("Slope cannot be zero for a valid linear equation.")
+            x = (y - intercept) / slope
+            return x
+        except Exception as e:
+            print(f"Error calculating x for y={y}, slope={slope}, intercept={intercept}: {e}")
+            return None
+
 class MousePortal(ShowBase):
     """
     Main application class for the infinite corridor simulation.
@@ -892,6 +973,29 @@ class MousePortal(ShowBase):
         # Load configuration from JSON
         with open(config_file, 'r') as f:
             self.cfg: Dict[str, Any] = load_config(config_file)
+
+        # Initialize the RewardCalculator
+        self.reward_calculator = RewardCalculator(self, self.cfg)
+
+        # Retrieve the reward_amount from the configuration
+        reward_amount = self.cfg.get("reward_amount", 0.0)
+
+        # Extract linear data from the reward calculator
+        linear_data = self.reward_calculator.extract_linear_data()
+
+        # Ensure the linear data is not empty
+        if not linear_data.empty:
+            # Use the first row of slope and intercept for calculation
+            slope = linear_data.iloc[0]['slope']
+            intercept = linear_data.iloc[0]['intercept']
+
+            # Calculate the x value for the reward amount
+            self.reward_x = self.reward_calculator.calculate_x(reward_amount, slope, intercept)
+
+            # Log or use the calculated x value
+            print(f"Calculated x value for reward amount {reward_amount}: {self.reward_x}")
+        else:
+            print("Failed to extract linear data. Reward calculation skipped.")
 
         # Get the display width and height for both monitors
         pipe = self.win.getPipe()

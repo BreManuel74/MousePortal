@@ -8,9 +8,9 @@
     "camera_height": 2.0,
     "treadmill_speed_scaling": 3,
     "speed_scaling": 0.05,
-    "left_wall_texture": "assets/grayscale_bedding_v3_square.jpg",
-    "right_wall_texture": "assets/grayscale_bedding_v3_square.jpg",
-    "floor_texture": "assets/grayscale_bedding_v3_square.jpg",
+    "left_wall_texture": "assets/wall_mean100.jpg",
+    "right_wall_texture": "assets/wall_mean100.jpg",
+    "floor_texture": "assets/wall_mean100.jpg",
     "ceiling_texture": "assets/white.png",
     "treadmill_logging_file": "test.csv",
     "capacitive_logging_file": "cap_log.csv",
@@ -19,16 +19,16 @@
     "arduino_port": "COM7",
     "arduino_baudrate": 115200,
     "teensy_baudrate": 57600,
-    "go_texture": "assets/go.png", 
-    "neutral_stim_1": "assets/neutral_stim.png",
-    "stop_texture": "assets/stop_stim.jpg",
+    "go_texture": "assets/punish_mean100.jpg", 
+    "neutral_stim_1": "assets/grating_mean100.jpg",
+    "stop_texture": "assets/reward_mean100.jpg",
     "test_mode": false,
     "trial_data": "subject_data.txt",
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 0.1,
+    "reward_time": 1,
     "puff_time": 0.1,
-    "puff_duration": 2500,
+    "puff_duration": 700,
     "base_hallway_distribution": {
         "loc": 25,
         "scale": 5
@@ -44,5 +44,7 @@
         "scale": 2
     },
     "go_zone_min_value": 1,
-    "puff_to_neutral_time": 3.0
+    "puff_to_neutral_time": 3.0,
+    "reward_amount": 25,
+    "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv"
 }
