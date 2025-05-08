@@ -45,6 +45,7 @@
     },
     "go_zone_min_value": 1,
     "puff_to_neutral_time": 3.0,
-    "reward_amount": 25,
-    "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv"
+    "reward_amount": 50,
+    "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv",
+    "batch_id": 2
 }

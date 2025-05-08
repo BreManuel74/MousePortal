@@ -911,19 +911,25 @@ class RewardCalculator:
             print(f"Error reading CSV file {self.reward_file}: {e}")
             return pd.DataFrame()  # Return an empty DataFrame on failure
 
-    def extract_linear_data(self) -> pd.DataFrame:
+    def extract_linear_data(self, batch_id: int) -> pd.DataFrame:
         """
-        Extract the y = mx + b data from the DataFrame.
+        Extract the y = mx + b data from the DataFrame for a specific batch_id.
 
-        Assumes the CSV file has columns: 'dt', 'w', 'dw', 'b0', 'b1',
+        Assumes the CSV file has columns: 'dt', 'w', 'dw', 'b0', 'b1', 'batch_id',
         where 'b0' is the slope (m) and 'b1' is the y-intercept (b).
 
+        Parameters:
+            batch_id (int): The batch ID to filter the data.
+
         Returns:
-            pd.DataFrame: A DataFrame with renamed columns. 
+            pd.DataFrame: A DataFrame with renamed columns filtered by batch_id.
         """
         try:
             df = self.read_csv_to_dataframe()
-            if {'dt', 'w', 'dw', 'b0', 'b1'}.issubset(df.columns):
+            if {'dt', 'w', 'dw', 'b0', 'b1', 'batch_id'}.issubset(df.columns):
+                # Filter the DataFrame by batch_id
+                df = df[df['batch_id'] == batch_id]
+
                 # Rename the columns
                 df = df.rename(columns={
                     'dt': 'time',
@@ -934,7 +940,7 @@ class RewardCalculator:
                 })
                 return df[['time', 'water_volumes', 'delta_water_volumes', 'slope', 'intercept']]
             else:
-                print("CSV file does not contain the required columns: 'dt', 'w', 'dw', 'b0', 'b1'.")
+                print("CSV file does not contain the required columns: 'dt', 'w', 'dw', 'b0', 'b1', 'batch_id'.")
                 return pd.DataFrame()  # Return an empty DataFrame if columns are missing
         except Exception as e:
             print(f"Error extracting linear data: {e}")
@@ -979,11 +985,12 @@ class MousePortal(ShowBase):
         # Initialize the RewardCalculator
         self.reward_calculator = RewardCalculator(self, self.cfg)
 
-        # Retrieve the reward_amount from the configuration
+        # Retrieve the reward_amount and batch_id from the configuration
         reward_amount = self.cfg.get("reward_amount", 0.0)
+        batch_id = self.cfg.get("batch_id", 1)  # Default to batch_id 1 if not specified
 
-        # Extract linear data from the reward calculator
-        linear_data = self.reward_calculator.extract_linear_data()
+        # Extract linear data for the specified batch_id
+        linear_data = self.reward_calculator.extract_linear_data(batch_id)
 
         # Ensure the linear data is not empty
         if not linear_data.empty:
@@ -996,9 +1003,9 @@ class MousePortal(ShowBase):
             self.reward_time = round(self.reward_time)
 
             # Log or use the calculated x value
-            print(f"Calculated x value for reward amount {reward_amount}: {self.reward_time}")
+            #print(f"Calculated x value for reward amount {reward_amount} (batch_id {batch_id}): {self.reward_time}")
         else:
-            print("Failed to extract linear data. Reward calculation skipped.")
+            print(f"Failed to extract linear data for batch_id {batch_id}. Reward calculation skipped.")
 
         # Get the display width and height for both monitors
         pipe = self.win.getPipe()
