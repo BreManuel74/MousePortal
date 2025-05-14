@@ -218,7 +218,7 @@ class TreadmillLogger:
             filename (str): Path to the CSV file.
         """
         self.filename = filename
-        self.fieldnames = ['timestamp', 'distance', 'speed']
+        self.fieldnames = ['timestamp', 'distance', 'speed', 'global_time']
         file_exists = os.path.isfile(self.filename)
         self.file = open(self.filename, 'a', newline='')
         self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
@@ -226,7 +226,7 @@ class TreadmillLogger:
             self.writer.writeheader()
 
     def log(self, data: TreadmillData):
-        self.writer.writerow({'timestamp': data.timestamp, 'distance': data.distance, 'speed': data.speed})
+        self.writer.writerow({'timestamp': data.timestamp, 'distance': data.distance, 'speed': data.speed, 'global_time': round(global_stopwatch.get_elapsed_time(), 2)})
         self.file.flush()
 
     def close(self):
@@ -700,21 +700,29 @@ class SerialInputManager(DirectObject.DirectObject):
 
     def _parse_line(self, line: str):
         """
-        Parse a line of serial output from the Teensy.
+        Parse a line of serial output from the Teensy or test CSV.
 
         Expected line formats:
-          - "timestamp,distance,speed"  or
+          - "timestamp,distance,speed"
           - "distance,speed"
+          - "timestamp,distance,speed,global_time" (test mode)
 
         Args:
-            line (str): A single line from the serial port.
+            line (str): A single line from the serial port or CSV.
 
         Returns:
-            Treadmilldata: An instance with parsed values, or None if parsing fails.
+            TreadmillData: An instance with parsed values, or None if parsing fails.
         """
         parts = line.split(',')
         try:
-            if len(parts) == 3:
+            if len(parts) == 4:
+                # Format: timestamp, distance, speed, global_time (test mode)
+                timestamp = int(parts[0].strip())
+                distance = float(parts[1].strip())
+                speed = float(parts[2].strip())
+                # global_time = float(parts[3].strip())  # If you want to use it elsewhere
+                return TreadmillData(distance=distance, speed=speed, timestamp=timestamp)
+            elif len(parts) == 3:
                 # Format: timestamp, distance, speed
                 timestamp = int(parts[0].strip())
                 distance = float(parts[1].strip())
@@ -788,7 +796,7 @@ class SerialOutputManager(DirectObject.DirectObject):
                     self.serial.write(f"{signal}".encode('utf-8'))
                 else:
                     raise ValueError("Unsupported signal type. Must be int or str.")
-                print(f"Sent signal: {signal}")
+                #print(f"Sent signal: {signal}")
             except Exception as e:
                 print(f"Failed to send signal: {e}")
         else:
