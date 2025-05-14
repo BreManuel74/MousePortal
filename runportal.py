@@ -87,6 +87,17 @@ class Stopwatch:
 # Create a global stopwatch instance
 global_stopwatch = Stopwatch()
 
+# Place this as a utility function, e.g., near the top of your file
+
+def doMethodLaterStopwatch(base, delay, func, name):
+    target_time = global_stopwatch.get_elapsed_time() + delay
+    def wrapper(task):
+        if global_stopwatch.get_elapsed_time() >= target_time:
+            func(task)
+            return Task.done
+        return Task.cont
+    base.taskMgr.add(wrapper, name)
+
 def load_config(config_file: str) -> Dict[str, Any]:
     """
     Load configuration parameters from a JSON file.
@@ -491,7 +502,7 @@ class Corridor:
             self.apply_texture(right_node, selected_temporary_texture)
         
         # Schedule a task to revert the textures back after 1 second
-        self.base.taskMgr.doMethodLater(self.probe_duration, self.revert_temporary_textures, "RevertWallTextures")
+        doMethodLaterStopwatch(self.base, self.probe_duration, self.revert_temporary_textures, "RevertWallTextures")
         
         # Do not reset the texture_change_scheduled flag here to prevent repeated scheduling
         return Task.done if task is None else task.done
@@ -532,7 +543,7 @@ class Corridor:
             self.apply_texture(right_node, self.right_wall_texture)
         
         # Schedule a task to change the wall textures temporarily after reverting
-        self.base.taskMgr.doMethodLater(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+        doMethodLaterStopwatch(self.base, self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -840,7 +851,7 @@ class RewardOrPuff(FSM):
         # Combine 1 and puff_duration into a single integer
         signal = int(f"1{self.puff_duration}")
         self.base.serial_output.send_signal(signal)
-        self.base.taskMgr.doMethodLater(self.puff_to_neutral_time, self._transitionToNeutral, 'return-to-neutral')
+        doMethodLaterStopwatch(self.base, self.puff_to_neutral_time, self._transitionToNeutral, 'return-to-neutral')
 
     def exitPuff(self):
         """
@@ -853,7 +864,7 @@ class RewardOrPuff(FSM):
             f.write(f"Mouse rewarded at {global_stopwatch.get_elapsed_time():.2f} seconds\n")
         signal = int(f"2{self.reward_time}")
         self.base.serial_output.send_signal(signal)
-        self.base.taskMgr.doMethodLater(1.0, self._transitionToNeutral, 'return-to-neutral')
+        doMethodLaterStopwatch(self.base, 1.0, self._transitionToNeutral, 'return-to-neutral')
 
     def exitReward(self):
         """
