@@ -150,9 +150,10 @@ class CapacitiveData:
     Represents a single capacitive sensor reading.
     """
     capacitive_value: int
+    timestamp: int  # Add this line
 
     def __repr__(self):
-        return f"CapacitiveData(capacitive_value={self.capacitive_value})"
+        return f"CapacitiveData(capacitive_value={self.capacitive_value}, timestamp={self.timestamp})"
 
 class CapacitiveSensorLogger(DirectObject.DirectObject):
     """
@@ -166,7 +167,7 @@ class CapacitiveSensorLogger(DirectObject.DirectObject):
             filename (str): Path to the CSV file.
         """
         self.filename = filename
-        self.fieldnames = ['timestamp', 'capacitive_value']
+        self.fieldnames = ['arduino_timestamp','elapsed_time', 'capacitive_value']
         file_exists = os.path.isfile(self.filename)
         self.file = open(self.filename, 'a', newline='')
         self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
@@ -184,7 +185,8 @@ class CapacitiveSensorLogger(DirectObject.DirectObject):
             data (CapacitiveData): The capacitive sensor data to log.
         """
         self.writer.writerow({
-            'timestamp': round(global_stopwatch.get_elapsed_time(), 2),  # Elapsed time from the global stopwatch
+            'arduino_timestamp': data.timestamp,  # Timestamp from the Arduino
+            'elapsed_time': round(global_stopwatch.get_elapsed_time(), 2),  # Elapsed time from the global stopwatch
             'capacitive_value': data.capacitive_value
         })
         self.file.flush()
@@ -648,7 +650,7 @@ class SerialInputManager(DirectObject.DirectObject):
         self.accept('readSerial', self._store_data)
         self.accept('readCapacitive', self._store_capacitive_data)
         self.data = TreadmillData(0, 0.0, 0.0)
-        self.capacitive_data = CapacitiveData(0)
+        self.capacitive_data = CapacitiveData(capacitive_value=0, timestamp=0)
         self.messenger = messenger
 
     def _store_data(self, data: TreadmillData):
@@ -688,12 +690,18 @@ class SerialInputManager(DirectObject.DirectObject):
             raw_line = self.arduino_serial.readline()
             line = raw_line.decode('utf-8', errors='replace').strip()
             try:
-                # Attempt to parse the line as an integer
-                capacitive_value = int(line)
-                # Wrap the value in a CapacitiveData object
-                capacitive_data = CapacitiveData(capacitive_value=capacitive_value)
-                self.messenger.send("readCapacitive", [capacitive_data])
-                #print("Parsed capacitive data:", capacitive_data)
+                # Expecting "timestamp,value"
+                parts = line.split(',')
+                if len(parts) == 2:
+                    timestamp = int(parts[0].strip())
+                    capacitive_value = int(parts[1].strip())
+                    capacitive_data = CapacitiveData(capacitive_value=capacitive_value, timestamp=timestamp)
+                    self.messenger.send("readCapacitive", [capacitive_data])
+                else:
+                    # Fallback: just value, no timestamp
+                    capacitive_value = int(line)
+                    capacitive_data = CapacitiveData(capacitive_value=capacitive_value, timestamp=0)
+                    self.messenger.send("readCapacitive", [capacitive_data])
             except ValueError:
                 pass  # Ignore non-integer lines
         return Task.cont
@@ -745,20 +753,27 @@ class SerialInputManager(DirectObject.DirectObject):
         Parse a line of capacitive sensor data from the Arduino.
 
         Expected line format:
-          - A single integer value.
+        - "timestamp,value" or just "value"
 
         Args:
             line (str): A single line from the serial port.
 
         Returns:
-            CapacitiveData: An instance with the parsed integer value, or None if parsing fails.
+            CapacitiveData: An instance with the parsed values, or None if parsing fails.
         """
         try:
-            capacitive_value = int(line.strip())  # Attempt to parse the line as an integer
-            return CapacitiveData(capacitive_value=capacitive_value)
+            parts = line.split(',')
+            if len(parts) == 2:
+                timestamp = int(parts[0].strip())
+                capacitive_value = int(parts[1].strip())
+            else:
+                capacitive_value = int(line.strip())
+                timestamp = 0
+            return CapacitiveData(capacitive_value=capacitive_value, timestamp=timestamp)
         except ValueError:
             # If the line is not a valid integer, return None
             print("no data")
+            return None
 
     def close(self):
         if self.test_mode and self.test_file:
