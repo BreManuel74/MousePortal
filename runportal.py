@@ -29,6 +29,8 @@ import os
 import time
 import serial
 import random
+import subprocess
+import sys
 import numpy as np
 from typing import Any, Dict
 from dataclasses import dataclass
@@ -674,15 +676,21 @@ class SerialInputManager(DirectObject.DirectObject):
                 # End of the CSV file; stop the task
                 print("End of test.csv reached.")
                 return Task.done
-        elif self.teensy_serial:
-            # Read data from the Teensy serial port
-            raw_line = self.teensy_serial.readline()
-            line = raw_line.decode('utf-8', errors='replace').strip()
-            if line:
-                data = self._parse_line(line)
-                if data:
-                    self.messenger.send("readSerial", [data])
-        return Task.cont
+        elif self.teensy_serial and getattr(self.teensy_serial, 'is_open', False):
+            try:
+                raw_line = self.teensy_serial.readline()
+                line = raw_line.decode('utf-8', errors='replace').strip()
+                if line:
+                    data = self._parse_line(line)
+                    if data:
+                        self.messenger.send("readSerial", [data])
+                return Task.cont
+            except Exception as e:
+                print(f"Serial read error: {e}")
+                return Task.done
+        else:
+            # Serial port is closed or None, stop the task
+            return Task.done
 
     def _read_arduino_serial(self, task: Task) -> Task:
         """Internal loop for continuously reading lines from the Arduino."""
@@ -821,7 +829,7 @@ class SerialOutputManager(DirectObject.DirectObject):
         """Close the serial connection."""
         if self.serial:
             self.serial.close()
-            print("Arduino serial port closed.")
+            #print("Arduino serial port closed.")
 
 class RewardOrPuff(FSM):
     """
@@ -1169,6 +1177,9 @@ class MousePortal(ShowBase):
         self.enter_go_time = 0.0
         self.enter_stay_time = 0.0
 
+        # Start the video recording subprocess
+        self.recorder_proc = subprocess.Popen([sys.executable, 'new_recorder.py'])
+
     def doMethodLaterStopwatch(base, delay, func, name):
         target_time = global_stopwatch.get_elapsed_time() + delay
         def wrapper(task):
@@ -1271,7 +1282,31 @@ class MousePortal(ShowBase):
         
         return Task.cont
 
+    def userExit(self):
+        """Override userExit to ensure subprocess is stopped and cleanup occurs."""
+        # Signal the subprocess to stop by creating the flag file
+        with open("stop_recording.flag", "w") as f:
+            f.write("stop")
+        try:
+            # Wait for the subprocess to finish
+            self.recorder_proc.wait(timeout=10)
+        except Exception as e:
+            print(f"Recorder subprocess did not exit cleanly: {e}")
+        # Remove the flag file if it exists
+        if os.path.exists("stop_recording.flag"):
+            os.remove("stop_recording.flag")
+        # Call the original cleanup without recursion
+        self._cleanup()
+        # Exit the Panda3D app
+        super().userExit()
+
     def close(self):
+        self._cleanup()
+
+    def _cleanup(self):
+        # Remove serial reading tasks before closing ports
+        self.taskMgr.remove("readTeensySerial")
+        self.taskMgr.remove("readArduinoSerial")
         if self.arduino_serial and self.arduino_serial.is_open:
             self.arduino_serial.close()
         if self.treadmill:
