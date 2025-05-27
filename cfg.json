@@ -1,6 +1,4 @@
 {
-    "window_width": 1920,
-    "window_height": 1080,
     "segment_length": 10.0,
     "corridor_width": 8.0,
     "wall_height": 10.0,
@@ -12,8 +10,10 @@
     "right_wall_texture": "assets/wall_mean100.jpg",
     "floor_texture": "assets/wall_mean100.jpg",
     "ceiling_texture": "assets/white.png",
-    "treadmill_logging_file": "test.csv",
-    "capacitive_logging_file": "cap_log.csv",
+    "treadmill_logging_file": "Kaufman_Project/Algernon/Session1/treadmill.csv",
+    "capacitive_logging_file": "Kaufman_Project/Algernon/Session1/cap_log.csv",
+    "trial_csv_path": "Kaufman_Project/Algernon/Session1/",
+    "recorder_script_path": "new_recorder.py",
     "fog_density": 0.06,
     "teensy_port": "COM5",
     "arduino_port": "COM7",
@@ -23,7 +23,6 @@
     "neutral_stim_1": "assets/grating_mean100.jpg",
     "stop_texture": "assets/reward_mean100.jpg",
     "test_mode": false,
-    "trial_data": "subject_data.txt",
     "probe_onset": 1.0,
     "probe_duration": 1.0,
     "reward_time": 1,
@@ -35,7 +34,7 @@
     },
     "base_hallway_min_value": 1,
     "stay_zone_distribution": {
-        "loc": 7,
+        "loc": 10,
         "scale": 2
     },
     "stay_zone_min_value": 1,
@@ -47,5 +46,7 @@
     "puff_to_neutral_time": 3.0,
     "reward_amount": 50,
     "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv",
-    "batch_id": 2
+    "batch_id": 2,
+    "mm_config_path": "C:\\Program Files\\Micro-Manager-2.0\\ThorCam.cfg",
+    "video_output_dir": "Kaufman_Project/Algernon/Session1/"
 }

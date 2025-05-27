@@ -3,34 +3,38 @@ import cv2
 import numpy as np
 import pymmcore_plus
 import time
+import json
+
+def load_config(config_path="cfg.json"):
+    with open(config_path, "r") as f:
+        return json.load(f)
 
 def main():
+    cfg = load_config()
+
+    # Get paths from config, with fallback defaults
+    mm_config_path = cfg.get("mm_config_path", r'C:\Program Files\Micro-Manager-2.0\ThorCam.cfg')
+    camera_device = cfg.get("camera_device", "ThorCam")
+    video_dir = cfg.get("video_output_dir", ".")
+    fps = cfg.get("video_fps", 30)
+    fourcc_str = cfg.get("video_fourcc", "XVID")
+    stop_file = cfg.get("stop_file", "stop_recording.flag")
+
     # Initialize the Micro-Manager core
     mmc = pymmcore_plus.CMMCorePlus()
-    mmc.loadSystemConfiguration(r'C:\Program Files\Micro-Manager-2.0\ThorCam.cfg')
-    camera_device = 'ThorCam'
+    mmc.loadSystemConfiguration(mm_config_path)
     mmc.setCameraDevice(camera_device)
-    
-    # Debug: List available properties
-    #print("Available properties for ThorCam:")
-    #print(mmc.getDevicePropertyNames(camera_device))
-    
-    # # Enable hardware sequencing for hardware triggering
-    # mmc.mda.engine.use_hardware_sequencing = True
-    # print("Hardware sequencing enabled for hardware triggering.")
-    
+
     # Video output settings
-    out_filename = f"video_{int(time.time())}.avi"
+    os.makedirs(video_dir, exist_ok=True)
+    out_filename = os.path.join(video_dir, f"{int(time.time())}pupil_cam.avi")
     frame_width = int(mmc.getImageWidth())
     frame_height = int(mmc.getImageHeight())
-    fps = 30  # Frames per second for the video
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for AVI format
+    fourcc = cv2.VideoWriter_fourcc(*fourcc_str)
     video_writer = cv2.VideoWriter(out_filename, fourcc, fps, (frame_width, frame_height), isColor=False)
-    
+
     # Start hardware-triggered sequence acquisition
     num_frames = 0  # 0 means indefinite acquisition until stopped manually
-
-    stop_file = "stop_recording.flag"
 
     try:
         mmc.startSequenceAcquisition(num_frames, 0, True)
@@ -51,7 +55,7 @@ def main():
     finally:
         mmc.stopSequenceAcquisition()
         video_writer.release()  # Release the video writer
-        print(f"Recording stopped on {camera_device}. Video saved.")
+        print(f"Recording stopped on {camera_device}. Video saved at {out_filename}.")
 
 if __name__ == "__main__":
     main()
