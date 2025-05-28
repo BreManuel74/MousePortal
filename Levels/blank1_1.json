@@ -10,10 +10,10 @@
     "right_wall_texture": "assets/black.png",
     "floor_texture": "assets/black.png",
     "ceiling_texture": "assets/black.png",
-    "treadmill_logging_file": "Kaufman_Project/Algernon/Session1/treadmill.csv",
-    "capacitive_logging_file": "Kaufman_Project/Algernon/Session1/cap_log.csv",
-    "trial_csv_path": "Kaufman_Project/Algernon/Session1/",
-    "recorder_script_path": "new_recorder.py",
+    "treadmill_logging_file": "Kaufman_Project/Algernon/Session1/beh/treadmill.csv",
+    "capacitive_logging_file": "Kaufman_Project/Algernon/Session1/beh/cap_log.csv",
+    "trial_csv_path": "Kaufman_Project/Algernon/Session1/beh/",
+    "recorder_script_path": "thorcam.py",
     "fog_density": 0.06,
     "fog_color": [0, 0, 0],
     "teensy_port": "COM5",
@@ -50,5 +50,5 @@
     "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv",
     "batch_id": 2,
     "mm_config_path": "C:\\Program Files\\Micro-Manager-2.0\\ThorCam.cfg",
-    "video_output_dir": "Kaufman_Project/Algernon/Session1/"
+    "video_output_dir": "Kaufman_Project/Algernon/Session1/beh/"
 }

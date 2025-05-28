@@ -1067,8 +1067,16 @@ class MousePortal(ShowBase):
             min_value=self.cfg["go_zone_min_value"]
         )
 
-        now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.trial_csv_path = f"{now_str}_trial_data.csv"
+        video_dir = self.cfg.get("trial_csv_path")
+
+        # Use trial_csv_path from config, prepend with timestamp
+        if "trial_csv_path" in self.cfg:
+            os.makedirs(video_dir, exist_ok=True)
+            self.trial_csv_path = os.path.join(video_dir, f"{int(time.time())}trial_log.csv")
+        else:
+            now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.trial_csv_path = f"{now_str}_trial_data.csv"
+            
         self.segments_to_wait_history = np.array([], dtype=int)
         self.texture_history = np.array([], dtype=str)
         self.texture_time_history = np.array([], dtype=float)
@@ -1119,7 +1127,8 @@ class MousePortal(ShowBase):
         global_stopwatch.start()
 
         # Start the video recording subprocess
-        self.recorder_proc = subprocess.Popen([sys.executable, 'new_recorder.py'])
+        recorder_script = self.cfg.get("recorder_script_path", "new_recorder.py")
+        self.recorder_proc = subprocess.Popen([sys.executable, recorder_script])
 
         # Get the display width and height for both monitors
         pipe = self.win.getPipe()
