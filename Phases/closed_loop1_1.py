@@ -1389,5 +1389,8 @@ class MousePortal(ShowBase):
             self.serial_output.close()
 
 if __name__ == "__main__":
-    app = MousePortal("levels/bedding1_1.json")
+    config_path = os.environ.get("LEVEL_CONFIG_PATH")
+    if config_path is None:
+        config_path = "levels/blank1_1.json"
+    app = MousePortal(config_path)
     app.run()
