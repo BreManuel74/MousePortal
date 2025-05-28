@@ -551,8 +551,10 @@ class Corridor:
         for right_node in self.right_segments:
             self.apply_texture(right_node, self.right_wall_texture)
         
-        # Schedule a task to change the wall textures temporarily after reverting
-        self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+        #Conditional to make probe optional
+        if self.base.cfg.get("probe", True):
+            # Schedule a task to change the wall textures temporarily after reverting
+            self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -1216,7 +1218,7 @@ class MousePortal(ShowBase):
         self.fog_effect = FogEffect(
             self,
             density=self.cfg["fog_density"],
-            fog_color=(0.5, 0.5, 0.5)
+            fog_color=tuple(self.cfg["fog_color"])  # Convert list to tuple
         )
         
         # Set up task chain for serial input
@@ -1400,5 +1402,5 @@ class MousePortal(ShowBase):
             self.serial_output.close()
 
 if __name__ == "__main__":
-    app = MousePortal("levels\cfg1_1_test.json")
+    app = MousePortal("levels/blank1_1.json")
     app.run()

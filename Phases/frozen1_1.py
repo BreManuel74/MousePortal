@@ -447,22 +447,22 @@ class Corridor:
         self.trial_df['texture_change_time'] = times
         self.trial_df.to_csv(self.trial_csv_path, index=False)
         
-        # Determine the stay_or_go_data based on the selected texture
-        if selected_texture == self.go_texture:
-            stay_or_go_data = self.rounded_go_data
-        else:
-            stay_or_go_data = self.rounded_stay_data
+        # # Determine the stay_or_go_data based on the selected texture
+        # if selected_texture == self.go_texture:
+        #     stay_or_go_data = self.rounded_go_data
+        # else:
+        #     stay_or_go_data = self.rounded_stay_data
         
-        # Set the counter for segments to revert textures using a random value from stay_or_go_data
-        self.segments_until_revert = int(random.choice(stay_or_go_data))
-        self.base.zone_length = self.segments_until_revert
+        # # Set the counter for segments to revert textures using a random value from stay_or_go_data
+        # self.segments_until_revert = int(random.choice(stay_or_go_data))
+        # self.base.zone_length = self.segments_until_revert
         
-        # Write the segments_until_revert value to the trial_data file
-        self.segments_until_revert_history = np.append(self.segments_until_revert_history, int(self.segments_until_revert))
-        length = np.full(len(self.trial_df), np.nan, dtype=float)
-        length[:len(self.segments_until_revert_history)] = self.segments_until_revert_history
-        self.trial_df['segments_until_revert'] = length
-        self.trial_df.to_csv(self.trial_csv_path, index=False)
+        # # Write the segments_until_revert value to the trial_data file
+        # self.segments_until_revert_history = np.append(self.segments_until_revert_history, int(self.segments_until_revert))
+        # length = np.full(len(self.trial_df), np.nan, dtype=float)
+        # length[:len(self.segments_until_revert_history)] = self.segments_until_revert_history
+        # self.trial_df['segments_until_revert'] = length
+        # self.trial_df.to_csv(self.trial_csv_path, index=False)
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -550,9 +550,11 @@ class Corridor:
             self.apply_texture(left_node, self.left_wall_texture)
         for right_node in self.right_segments:
             self.apply_texture(right_node, self.right_wall_texture)
-        
-        # Schedule a task to change the wall textures temporarily after reverting
-        self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+            
+        #Conditional to make probe optional
+        if self.base.cfg.get("probe", True):
+            # Schedule a task to change the wall textures temporarily after reverting
+            self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -1216,7 +1218,7 @@ class MousePortal(ShowBase):
         self.fog_effect = FogEffect(
             self,
             density=self.cfg["fog_density"],
-            fog_color=(0.5, 0.5, 0.5)
+            fog_color=tuple(self.cfg["fog_color"])  # Convert list to tuple
         )
         
         # Set up task chain for serial input
@@ -1252,6 +1254,10 @@ class MousePortal(ShowBase):
         self.enter_go_time = 0.0
         self.enter_stay_time = 0.0
 
+        # Accept space key for manual texture change
+        self.accept("space", self.manual_texture_change)
+        self.accept("b", self.manual_revert_wall_textures)
+
     def doMethodLaterStopwatch(base, delay, func, name):
         target_time = global_stopwatch.get_elapsed_time() + delay
         def wrapper(task):
@@ -1273,85 +1279,31 @@ class MousePortal(ShowBase):
         
     def update(self, task: Task) -> Task:
         """
-        Update the camera's position based on user input and recycle corridor segments
-        when the player moves forward beyond one segment.
-        
-        Parameters:
-            task (Task): The Panda3D task instance.
-            
-        Returns:
-            Task: Continuation signal for the task manager.
+        Keep the corridor and camera stationary, but still allow wall textures to change if needed.
         """
-        dt: float = globalClock.getDt()
-        move_distance: float = 0.0
-        
-        # Update camera velocity based on key input
-        if self.key_map["forward"]:
-            self.camera_velocity = self.speed_scaling
-        elif self.key_map["backward"]:
-            self.camera_velocity = -self.speed_scaling
-        else:
-            self.camera_velocity = 0.0
-        
-        self.camera_velocity = (int(self.treadmill.data.speed) / self.cfg["treadmill_speed_scaling"])
+        # Fix the camera at its initial position
+        self.camera.setPos(0, 0, self.camera_height)
+        self.camera.setHpr(0, 0, 0)
 
-        # Update camera position (movement along the Y axis)
-        self.camera_position += self.camera_velocity * dt
-        move_distance = self.camera_velocity * dt
-        self.camera.setPos(0, self.camera_position, self.camera_height)
-        
-        # Recycle corridor segments when the camera moves beyond one segment length
-        if move_distance > 0:
-            self.distance_since_recycle += move_distance
-            while self.distance_since_recycle >= self.segment_length:
-                # Recycle the segment in the forward direction
-                self.corridor.recycle_segment(direction="forward")
-                self.distance_since_recycle -= self.segment_length
-                self.corridor.segments_until_texture_change -= 1
-                self.corridor.update_texture_change()
-
-                # Check if the new front segment has the stay or go textures
-                new_front_texture = self.corridor.left_segments[0].getTexture().getFilename()
-                if new_front_texture == self.corridor.go_texture:
-                    self.segments_with_go_texture += 1
-                    #print(f"New segment with go texture counted: {self.segments_with_go_texture}")
-                elif new_front_texture == self.corridor.stop_texture:
-                    self.segments_with_stay_texture += 1
-                    #print(f"New segment with stay texture counted: {self.segments_with_stay_texture}")
-        
-        elif move_distance < 0:
-            self.distance_since_recycle += move_distance
-            while self.distance_since_recycle <= -self.segment_length:
-                self.corridor.recycle_segment(direction="backward")
-                self.distance_since_recycle += self.segment_length
-
-        # Log movement data (timestamp, distance, speed)
+        # Optionally, you can still log treadmill data and update textures if desired
         self.treadmill_logger.log(self.treadmill.data)
 
-        # FSM state transition logic
-        # Dynamically get the current texture of the left wall
+        # If you want to keep the FSM logic and texture changes, you can keep this part:
         selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
-
-        # Get the elapsed time from the global stopwatch
         current_time = global_stopwatch.get_elapsed_time()
 
+        # FSM state transition logic (unchanged)
         if selected_texture == self.corridor.stop_texture:
-            #print(self.zone_length)
             if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + (self.reward_time * self.zone_length):
-                #print("Requesting Reward state")
+                 #print("Requesting Reward state")
                 self.fsm.request('Reward')
         # elif selected_texture == self.corridor.go_texture:
-        #     #print(self.zone_length)
-        #     if self.segments_with_go_texture <= self.zone_length and self.fsm.state != 'Puff' and current_time >= self.enter_go_time + (self.puff_time * self.zone_length):
-        #         #print("Requesting Puff state")
+        #     if self.fsm.state != 'Puff':
         #         self.fsm.request('Puff')
         else:
-            self.segments_with_go_texture = 0 
-            self.segments_with_stay_texture = 0
             if self.fsm.state != 'Neutral':
-                #print("Requesting Neutral state")
                 self.fsm.request('Neutral')
-        
+
         return Task.cont
 
     def userExit(self):
@@ -1386,6 +1338,14 @@ class MousePortal(ShowBase):
         if self.serial_output:
             self.serial_output.close()
 
+    def manual_texture_change(self):
+        """Manually trigger a wall texture change."""
+        self.corridor.change_wall_textures()
+
+    def manual_revert_wall_textures(self):
+        """Manually revert wall textures to the base/original textures."""
+        self.corridor.revert_wall_textures()
+
 if __name__ == "__main__":
-    app = MousePortal("levels\cfg1_1_test.json")
+    app = MousePortal("levels/bedding1_1.json")
     app.run()
