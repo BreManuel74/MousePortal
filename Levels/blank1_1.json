@@ -49,6 +49,5 @@
     "reward_amount": 50,
     "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv",
     "batch_id": 2,
-    "mm_config_path": "C:\\Program Files\\Micro-Manager-2.0\\ThorCam.cfg",
     "video_output_dir": "Kaufman_Project/Algernon/Session1/beh/"
 }
