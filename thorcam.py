@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 import pymmcore_plus
 import time
-import json
 from Phases.user_1 import Stopwatch
 
 def main():

@@ -1097,7 +1097,8 @@ class MousePortal(ShowBase):
 
         # Retrieve the reward_amount and batch_id from the configuration
         reward_amount = self.cfg.get("reward_amount", 0.0)
-        batch_id = self.cfg.get("batch_id", 1)  # Default to batch_id 1 if not specified
+        batch_id = os.environ.get("BATCH_ID")
+        batch_id = int(batch_id)
 
         # Extract linear data for the specified batch_id
         linear_data = self.reward_calculator.extract_linear_data(batch_id)

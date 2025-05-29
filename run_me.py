@@ -38,7 +38,7 @@ def make_relative_forward_slash(path):
     rel_path = os.path.relpath(path, os.getcwd())
     return rel_path.replace("\\", "/")
 
-def log_run(animal_name, level_file, phase_file):
+def log_run(animal_name, level_file, phase_file, batch_id):
     log_dir = "Progress_Reports"
     os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
     log_file = os.path.join(log_dir, f"{animal_name}_log.csv")
@@ -53,16 +53,18 @@ def log_run(animal_name, level_file, phase_file):
     with open(log_file, mode="a", newline="") as f:
         writer = csv.writer(f)
         if write_header:
-            writer.writerow(["Date", "Time", "Level File", "Phase File"])
-        writer.writerow([date_str, time_str, level_file_name, phase_file_name])
+            writer.writerow(["Date", "Time", "Level File", "Phase File", "Batch ID"])
+        writer.writerow([date_str, time_str, level_file_name, phase_file_name, batch_id])
 
-def run_phase_with_level(phase_file_path, level_file_path, output_dir=None):
+def run_phase_with_level(phase_file_path, level_file_path, output_dir=None, batch_id=None):
     level_file_path = make_relative_forward_slash(level_file_path)
     print(f"About to run: {phase_file_path} with config: {level_file_path}")
     env = os.environ.copy()
     env["LEVEL_CONFIG_PATH"] = level_file_path
     if output_dir:
         env["OUTPUT_DIR"] = output_dir
+    if batch_id is not None:
+        env["BATCH_ID"] = str(batch_id)
     subprocess.run([sys.executable, phase_file_path], env=env)
     #print("Phase file loaded!")
 
@@ -71,6 +73,7 @@ if __name__ == "__main__":
     level_file = select_file('Levels', '.json')
     phase_file = select_file('Phases', '.py')
     output_dir = select_dir(os.getcwd())
-    print(f"Running {phase_file} with level config {level_file} and OUTPUT_DIR {output_dir}...")
-    log_run(animal_name, level_file, phase_file)
-    run_phase_with_level(phase_file, level_file, output_dir)
+    batch_id = input("Enter batch ID number: ")
+    #print(f"Running {phase_file} with level config {level_file}, OUTPUT_DIR {output_dir}, and BATCH_ID {batch_id}...")
+    log_run(animal_name, level_file, phase_file, batch_id)
+    run_phase_with_level(phase_file, level_file, output_dir, batch_id)
