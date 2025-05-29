@@ -11,7 +11,7 @@ def main():
     global_stopwatch.start()
 
     camera_device = "ThorCam"
-    video_dir = os.environ.get("VIDEO_DIR")
+    video_dir = os.environ.get("OUTPUT_DIR")
     fps = 30
     stop_file = "stop_recording.flag"
 

@@ -10,9 +10,6 @@
     "right_wall_texture": "assets/wall_mean100.jpg",
     "floor_texture": "assets/wall_mean100.jpg",
     "ceiling_texture": "assets/white.png",
-    "treadmill_logging_file": "Kaufman_Project/Algernon/Session1/beh/treadmill.csv",
-    "capacitive_logging_file": "Kaufman_Project/Algernon/Session1/beh/cap_log.csv",
-    "trial_csv_path": "Kaufman_Project/Algernon/Session1/beh/",
     "recorder_script_path": "thorcam.py",
     "fog_density": 0.06,
     "fog_color": [0.5, 0.5, 0.5],
@@ -48,6 +45,5 @@
     "puff_to_neutral_time": 3.0,
     "reward_amount": 50,
     "reward_file": "C:\\Users\\Sipe_Lab\\Desktop\\liquid_calibrator\\solenoid_calibration_results.csv",
-    "batch_id": 2,
-    "video_output_dir": "Kaufman_Project/Algernon/Session1/beh/"
+    "batch_id": 2
 }

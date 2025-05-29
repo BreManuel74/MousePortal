@@ -1069,15 +1069,7 @@ class MousePortal(ShowBase):
             min_value=self.cfg["go_zone_min_value"]
         )
 
-        video_dir = self.cfg.get("trial_csv_path")
-
-        # Use trial_csv_path from config, prepend with timestamp
-        if "trial_csv_path" in self.cfg:
-            os.makedirs(video_dir, exist_ok=True)
-            self.trial_csv_path = os.path.join(video_dir, f"{int(time.time())}trial_log.csv")
-        else:
-            now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            self.trial_csv_path = f"{now_str}_trial_data.csv"
+        self.trial_csv_path = os.path.join(os.environ.get("OUTPUT_DIR"), f"{int(time.time())}trial_log.csv")
             
         self.segments_to_wait_history = np.array([], dtype=int)
         self.texture_history = np.array([], dtype=str)
@@ -1129,7 +1121,7 @@ class MousePortal(ShowBase):
         global_stopwatch.start()
 
         # Start the video recording subprocess
-        recorder_script = self.cfg.get("recorder_script_path", "new_recorder.py")
+        recorder_script = self.cfg.get("recorder_script_path", "thorcam.py")
         self.recorder_proc = subprocess.Popen([sys.executable, recorder_script])
 
         # Get the display width and height for both monitors
@@ -1208,8 +1200,10 @@ class MousePortal(ShowBase):
         self.movement_speed: float = 10.0
         
         # Initialize treadmill logger
-        self.treadmill_logger = TreadmillLogger(self.cfg["treadmill_logging_file"])
-        self.capacitive_logger = CapacitiveSensorLogger(self.cfg["capacitive_logging_file"])
+        treadmill_log_path = os.path.join(os.environ.get("OUTPUT_DIR"), f"{int(time.time())}treadmill.csv")
+        self.treadmill_logger = TreadmillLogger(treadmill_log_path)
+        capacitive_log_path = os.path.join(os.environ.get("OUTPUT_DIR"), f"{int(time.time())}capacitive.csv")
+        self.capacitive_logger = CapacitiveSensorLogger(capacitive_log_path)
 
         # Add the update task
         self.taskMgr.add(self.update, "updateTask")

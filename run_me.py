@@ -36,19 +36,19 @@ def make_relative_forward_slash(path):
     rel_path = os.path.relpath(path, os.getcwd())
     return rel_path.replace("\\", "/")
 
-def run_phase_with_level(phase_file_path, level_file_path, video_dir=None):
+def run_phase_with_level(phase_file_path, level_file_path, output_dir=None):
     level_file_path = make_relative_forward_slash(level_file_path)
     print(f"About to run: {phase_file_path} with config: {level_file_path}")
     env = os.environ.copy()
     env["LEVEL_CONFIG_PATH"] = level_file_path
-    if video_dir:
-        env["VIDEO_DIR"] = video_dir
+    if output_dir:
+        env["OUTPUT_DIR"] = output_dir
     subprocess.run([sys.executable, phase_file_path], env=env)
     #print("Phase file loaded!")
 
 if __name__ == "__main__":
     level_file = select_file('Levels', '.json')
     phase_file = select_file('Phases', '.py')
-    video_dir = select_dir(os.getcwd())
-    print(f"Running {phase_file} with level config {level_file} and VIDEO_DIR {video_dir}...")
-    run_phase_with_level(phase_file, level_file, video_dir)
+    output_dir = select_dir(os.getcwd())
+    print(f"Running {phase_file} with level config {level_file} and OUTPUT_DIR {output_dir}...")
+    run_phase_with_level(phase_file, level_file, output_dir)
