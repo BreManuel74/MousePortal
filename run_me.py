@@ -1,6 +1,8 @@
 import os
 import subprocess
 import sys
+import csv
+from datetime import datetime
 
 def list_files(folder, ext=".py"):
     return [f for f in os.listdir(folder) if f.endswith(ext)]
@@ -22,7 +24,7 @@ def select_dir(base_folder):
         dirs = list_dirs(base_folder)
         print(f"\nCurrent directory: {base_folder}")
         if not dirs:
-            print(f"No directories found in {base_folder}.")
+            #print(f"No directories found in {base_folder}.")
             return base_folder
         print("0: Select this directory")
         for idx, d in enumerate(dirs):
@@ -36,6 +38,24 @@ def make_relative_forward_slash(path):
     rel_path = os.path.relpath(path, os.getcwd())
     return rel_path.replace("\\", "/")
 
+def log_run(animal_name, level_file, phase_file):
+    log_dir = "Progress_Reports"
+    os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
+    log_file = os.path.join(log_dir, f"{animal_name}_log.csv")
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M:%S")
+    # Only log the file names, not full paths
+    level_file_name = os.path.basename(level_file)
+    phase_file_name = os.path.basename(phase_file)
+    # Write header if file does not exist
+    write_header = not os.path.exists(log_file)
+    with open(log_file, mode="a", newline="") as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow(["Date", "Time", "Level File", "Phase File"])
+        writer.writerow([date_str, time_str, level_file_name, phase_file_name])
+
 def run_phase_with_level(phase_file_path, level_file_path, output_dir=None):
     level_file_path = make_relative_forward_slash(level_file_path)
     print(f"About to run: {phase_file_path} with config: {level_file_path}")
@@ -47,8 +67,10 @@ def run_phase_with_level(phase_file_path, level_file_path, output_dir=None):
     #print("Phase file loaded!")
 
 if __name__ == "__main__":
+    animal_name = input("Enter animal name: ")
     level_file = select_file('Levels', '.json')
     phase_file = select_file('Phases', '.py')
     output_dir = select_dir(os.getcwd())
     print(f"Running {phase_file} with level config {level_file} and OUTPUT_DIR {output_dir}...")
+    log_run(animal_name, level_file, phase_file)
     run_phase_with_level(phase_file, level_file, output_dir)
