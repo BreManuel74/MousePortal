@@ -12,7 +12,6 @@
     "ceiling_texture": "assets/white.png",
     "recorder_script_path": "thorcam.py",
     "fog_density": 0.06,
-    "teensy_port": "COM8",
     "arduino_port": "COM7",
     "arduino_baudrate": 115200,
     "teensy_baudrate": 57600,

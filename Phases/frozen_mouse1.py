@@ -1181,7 +1181,7 @@ class MousePortal(ShowBase):
 
         # Set up treadmill input
         self.treadmill = SerialInputManager(
-            teensy_port=self.cfg["teensy_port"],
+            os.environ.get("TEENSY_PORT"),
             teensy_baudrate=self.cfg["teensy_baudrate"],
             arduino_serial=self.arduino_serial,  # Pass the shared instance
             messenger=self.messenger,

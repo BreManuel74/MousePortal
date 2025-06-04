@@ -13,7 +13,6 @@
     "recorder_script_path": "thorcam.py",
     "fog_density": 0.06,
     "fog_color": [0.5, 0.5, 0.5],
-    "teensy_port": "COM5",
     "arduino_port": "COM7",
     "arduino_baudrate": 115200,
     "teensy_baudrate": 57600,

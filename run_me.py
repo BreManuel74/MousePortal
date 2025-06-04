@@ -56,7 +56,7 @@ def log_run(animal_name, level_file, phase_file, batch_id):
             writer.writerow(["Date", "Time", "Level File", "Phase File", "Batch ID"])
         writer.writerow([date_str, time_str, level_file_name, phase_file_name, batch_id])
 
-def run_phase_with_level(phase_file_path, level_file_path, output_dir=None, batch_id=None):
+def run_phase_with_level(phase_file_path, level_file_path, output_dir=None, batch_id=None, teensy_port=None):
     level_file_path = make_relative_forward_slash(level_file_path)
     print(f"About to run: {phase_file_path} with config: {level_file_path}")
     env = os.environ.copy()
@@ -65,6 +65,8 @@ def run_phase_with_level(phase_file_path, level_file_path, output_dir=None, batc
         env["OUTPUT_DIR"] = output_dir
     if batch_id is not None:
         env["BATCH_ID"] = str(batch_id)
+    if teensy_port:
+        env["TEENSY_PORT"] = teensy_port
     subprocess.run([sys.executable, phase_file_path], env=env)
     #print("Phase file loaded!")
 
@@ -74,6 +76,7 @@ if __name__ == "__main__":
     phase_file = select_file('Phases', '.py')
     output_dir = select_dir(os.getcwd())
     batch_id = input("Enter batch ID number: ")
+    teensy_port = input("Enter Teensy port (e.g., COM3): ")
     #print(f"Running {phase_file} with level config {level_file}, OUTPUT_DIR {output_dir}, and BATCH_ID {batch_id}...")
     log_run(animal_name, level_file, phase_file, batch_id)
-    run_phase_with_level(phase_file, level_file, output_dir, batch_id)
+    run_phase_with_level(phase_file, level_file, output_dir, batch_id, teensy_port)
