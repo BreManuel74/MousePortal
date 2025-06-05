@@ -264,6 +264,7 @@ class Corridor:
         self.segments_to_wait_history = self.base.segments_to_wait_history
         self.probe_texture_history = self.base.probe_texture_history
         self.probe_time_history = self.base.probe_time_history
+        self.texture_revert_history = self.base.texture_revert_history
         self.trial_df = self.base.trial_df
         self.trial_df.to_csv = self.base.trial_df.to_csv 
         self.trial_csv_path = self.base.trial_csv_path
@@ -560,6 +561,15 @@ class Corridor:
         Returns:
             Task: Continuation signal for the task manager.
         """
+
+        elapsed_time = global_stopwatch.get_elapsed_time()
+        self.texture_revert_history = np.append(self.texture_revert_history, round(elapsed_time, 2))
+
+        revert_times = np.full(len(self.trial_df), np.nan)
+        revert_times[:len(self.texture_revert_history)] = self.texture_revert_history
+        self.trial_df['texture_revert'] = revert_times
+        self.trial_df.to_csv(self.trial_csv_path, index=False)
+
         # Reapply the original textures to the walls
         for left_node in self.left_segments:
             self.apply_texture(left_node, self.left_wall_texture)
@@ -1089,6 +1099,7 @@ class MousePortal(ShowBase):
         self.segments_to_wait_history = np.array([], dtype=int)
         self.texture_history = np.array([], dtype=str)
         self.texture_time_history = np.array([], dtype=float)
+        self.texture_revert_history = np.array([], dtype=float)
         self.segments_until_revert_history = np.array([], dtype=int)
         self.probe_texture_history = np.array([], dtype=str)
         self.probe_time_history = np.array([], dtype=float)
@@ -1102,6 +1113,7 @@ class MousePortal(ShowBase):
             'texture_history': np.full_like(len(self.rounded_base_hallway_data), np.nan, dtype=object),
             'texture_change_time': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=float),
             'segments_until_revert': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=float),
+            'texture_revert': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=float),
             'probe_texture_history': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=object),
             'probe_time': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=float),
             'puff_event': np.full_like(self.rounded_base_hallway_data, np.nan, dtype=object),
