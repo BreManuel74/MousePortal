@@ -40,6 +40,6 @@
     },
     "go_zone_min_value": 1,
     "puff_to_neutral_time": 3.0,
-    "reward_amount": 50,
+    "reward_amount": 5,
     "reward_file": "C:\\Users\\Sipe_Lab\\MousePortal\\Solenoid_Calibration\\solenoid_calibration_results.csv"
 }

@@ -894,7 +894,7 @@ class RewardOrPuff(FSM):
         self.config = config
         self.puff_duration = config["puff_duration"]
         self.puff_to_neutral_time = config["puff_to_neutral_time"]
-        self.reward_time = self.base.reward_time
+        self.reward_duration = self.base.reward_duration
         self.puff_history = self.base.puff_history
         self.reward_history = self.base.reward_history
         self.trial_df = self.base.trial_df
@@ -935,7 +935,7 @@ class RewardOrPuff(FSM):
         self.trial_df['reward_event'] = reward_times
         self.trial_df.to_csv(self.trial_csv_path, index=False)
 
-        signal = int(f"2{self.reward_time}")
+        signal = int(f"2{self.reward_duration}")
         self.base.serial_output.send_signal(signal)
         self.base.doMethodLaterStopwatch(1.0, self._transitionToNeutral, 'return-to-neutral')
 
@@ -1137,11 +1137,11 @@ class MousePortal(ShowBase):
             intercept = linear_data.iloc[0]['intercept']
 
             # Calculate the x value for the reward amount
-            self.reward_time = self.reward_calculator.calculate_x(reward_amount, slope, intercept)
-            self.reward_time = round(self.reward_time)
+            self.reward_duration = self.reward_calculator.calculate_x(reward_amount, slope, intercept)
+            self.reward_duration = round(self.reward_duration)
 
             # Log or use the calculated x value
-            #print(f"Calculated x value for reward amount {reward_amount} (batch_id {batch_id}): {self.reward_time}")
+            #print(f"Calculated x value for reward amount {reward_amount} (batch_id {batch_id}): {self.reward_duration}")
         else:
             print(f"Failed to extract linear data for batch_id {batch_id}. Reward calculation skipped.")
 
@@ -1217,8 +1217,6 @@ class MousePortal(ShowBase):
         
         # Initialize the RewardOrPuff FSM
         self.fsm = RewardOrPuff(self, self.cfg)
-        self.reward_time = self.cfg["reward_time"]
-        self.puff_time = self.cfg["puff_time"]
         self.zone_length = 0
 
         # Variable to track movement since last recycling
@@ -1355,6 +1353,8 @@ class MousePortal(ShowBase):
         # FSM state transition logic
         # Dynamically get the current texture of the left wall
         selected_texture = self.corridor.left_segments[0].getTexture().getFilename()
+        self.reward_time = self.cfg["reward_time"]
+        self.puff_time = self.cfg["puff_time"]
 
         # Get the elapsed time from the global stopwatch
         current_time = global_stopwatch.get_elapsed_time()
