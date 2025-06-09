@@ -1351,7 +1351,8 @@ class MousePortal(ShowBase):
 
         if selected_texture == self.corridor.stop_texture:
             #print(self.zone_length)
-            if self.segments_with_stay_texture <= self.zone_length and self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + (self.reward_time * self.zone_length):
+            #print(self.enter_stay_time)
+            if self.fsm.state != 'Reward' and current_time >= self.enter_stay_time + self.reward_time:
                 #print("Requesting Reward state")
                 self.fsm.request('Reward')
         # elif selected_texture == self.corridor.go_texture:
@@ -1371,6 +1372,10 @@ class MousePortal(ShowBase):
     def manual_texture_change(self):
         """Manually trigger a wall texture change."""
         self.corridor.change_wall_textures()
+        # Update enter_stay_time if the new texture is the stop texture
+        new_texture = self.corridor.left_segments[0].getTexture().getFilename()
+        if new_texture == self.corridor.stop_texture:
+            self.enter_stay_time = global_stopwatch.get_elapsed_time()
 
     def manual_revert_wall_textures(self):
         """Manually revert wall textures to the original textures."""
