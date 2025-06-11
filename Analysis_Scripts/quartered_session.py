@@ -381,29 +381,6 @@ if __name__ == "__main__":
     # Create DataFrame
     df_quarters = pd.DataFrame(quarter_data)
 
-    # Plot only the averages
-    ax = df_quarters.set_index('Quarter')[[
-        'average_licks_before_reward',
-        'average_licks_before_reward_zone',
-        'average_licks_after_reward'
-    ]].plot(kind='bar', figsize=(10,6))
-
-    plt.ylabel('Value')
-    plt.title('Lick Metrics by Session Quarter')
-    plt.xticks(rotation=0)
-    plt.tight_layout()
-
-    # Annotate the ratio above each quarter
-    for idx, row in df_quarters.iterrows():
-        xpos = idx
-        ymax = max(row['average_licks_before_reward'],
-                   row['average_licks_before_reward_zone'],
-                   row['average_licks_after_reward'])
-        ratio = row['ratio_licks_before_reward_to_before_zone']
-        plt.text(xpos, ymax + 0.5, f"Ratio: {ratio}", ha='center', va='bottom', fontsize=10, fontweight='bold')
-
-    plt.show()
-
     # Collect ratio values for each quarter
     quarter_ratios = [
         0 if pd.isna(row['ratio_licks_before_reward_to_before_zone']) else row['ratio_licks_before_reward_to_before_zone']
@@ -416,3 +393,87 @@ if __name__ == "__main__":
     # Append quarter ratios
     appender = LickMetricsAppender(csv_path)
     appender.append_quarter_ratios(row_index, quarter_ratios)
+
+    # Add no-reward zone counts and averages to the DataFrame
+    df_quarters['no_reward_licks_before'] = df_quarters['no_reward_licks_before'].astype(float)
+    df_quarters['no_reward_licks_after'] = df_quarters['no_reward_licks_after'].astype(float)
+    df_quarters['n_no_reward_zones'] = [
+        np.sum(~np.isnan([
+            metrics_quarter['no_reward_licks_before'],
+            metrics_quarter['no_reward_licks_after']
+        ])) if not (np.isnan(metrics_quarter['no_reward_licks_before']) and np.isnan(metrics_quarter['no_reward_licks_after'])) else 0
+        for metrics_quarter in quarter_data
+    ]
+
+    # Set up the plot
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    # Bar positions
+    quarters = df_quarters['Quarter']
+    x = np.arange(len(quarters))
+    width = 0.13
+
+    # Plot bars for each metric
+    ax.bar(x - 2*width, df_quarters['average_licks_before_reward'], width, label='Licks Before Reward')
+    ax.bar(x - width, df_quarters['average_licks_before_reward_zone'], width, label='Licks Before Reward Zone')
+    ax.bar(x, df_quarters['average_licks_after_reward'], width, label='Licks After Reward')
+    ax.bar(x + width, df_quarters['no_reward_licks_before'], width, label='Licks 2s Before No-Reward Zone')
+    ax.bar(x + 2*width, df_quarters['no_reward_licks_after'], width, label='Licks 2s After No-Reward Zone')
+
+    # Add ratio as text above bars
+    for idx, row in df_quarters.iterrows():
+        xpos = x[idx]
+        ymax = max(
+            row['average_licks_before_reward'],
+            row['average_licks_before_reward_zone'],
+            row['average_licks_after_reward'],
+            0 if np.isnan(row['no_reward_licks_before']) else row['no_reward_licks_before'],
+            0 if np.isnan(row['no_reward_licks_after']) else row['no_reward_licks_after']
+        )
+        ratio = row['ratio_licks_before_reward_to_before_zone']
+        ax.text(xpos, ymax + 1, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
+        # Also annotate number of no-reward zones if present
+        n_no_reward = row['n_no_reward_zones']
+        if n_no_reward > 0:
+            ax.text(xpos, ymax + 5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(quarters)
+    ax.set_ylabel('Licks / Value')
+    ax.set_title('Lick Metrics by Session Quarter')
+    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    #plt.show()
+
+    # Select columns to display
+    table_columns = [
+        'Quarter',
+        'average_licks_before_reward',
+        'average_licks_before_reward_zone',
+        'average_licks_after_reward',
+        'ratio_licks_before_reward_to_before_zone',
+        'no_reward_licks_before',
+        'no_reward_licks_after',
+        'n_no_reward_zones'
+    ]
+
+    # Prepare data for the table
+    table_data = df_quarters[table_columns].copy()
+    table_data = table_data.round(2)
+    table_data = table_data.fillna('')
+
+    # Add a new figure for the table
+    fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
+    ax2.axis('off')
+    mpl_table = ax2.table(
+        cellText=table_data.values,
+        colLabels=table_data.columns,
+        loc='center',
+        cellLoc='center'
+    )
+    mpl_table.auto_set_font_size(False)
+    mpl_table.set_fontsize(10)
+    mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
+    plt.title("Lick Metrics Table by Quarter")
+    plt.tight_layout()
+    plt.show()
