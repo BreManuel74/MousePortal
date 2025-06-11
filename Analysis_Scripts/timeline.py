@@ -4,9 +4,9 @@ import numpy as np
 import ast
 
 # File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021trial_log.csv'
-treadmill_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021treadmill.csv'
-capacitive_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021capacitive.csv'
+trial_log_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827trial_log.csv'
+treadmill_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827treadmill.csv'
+capacitive_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827capacitive.csv'
 
 # Read the CSV files into pandas DataFrames
 trial_log_df = pd.read_csv(trial_log_path, engine='python')
@@ -205,3 +205,10 @@ plt.title('Interpolated Treadmill Speed Over Time with Reward and Puff Events')
 plt.legend()
 plt.tight_layout()
 plt.show()
+
+hits = len(reward_times)
+print(f"Number of hits: {hits}")
+reward_zones = len(reward_texture_change_time)
+#print(f"Number of reward zones: {reward_zones}")
+misses = reward_zones - hits
+print(f"Number of misses: {misses}")
