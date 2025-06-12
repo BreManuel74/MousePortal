@@ -116,7 +116,7 @@ class LickAnalysis:
         """Return a list of dicts for each quarter with (start, end, reward_delays)."""
         min_time = self.capacitive_df['elapsed_time'].min()
         max_time = self.capacitive_df['elapsed_time'].max()
-        print(f"[LickAnalysis] min_time: {min_time}, max_time: {max_time}")
+        #print(f"[LickAnalysis] min_time: {min_time}, max_time: {max_time}")
         quarter_length = (max_time - min_time) / 4
 
         # Prepare arrays for reward zone and reward times
@@ -333,7 +333,7 @@ class SpeedAnalysis:
         min_time = self.capacitive_df['elapsed_time'].min()
         max_time = self.capacitive_df['elapsed_time'].max()
         quarter_length = (max_time - min_time) / 4
-        print(f"[SpeedAnalysis] min_time: {min_time}, max_time: {max_time}")
+        #print(f"[SpeedAnalysis] min_time: {min_time}, max_time: {max_time}")
 
         quarters = []
         for i in range(4):
@@ -351,6 +351,151 @@ class SpeedAnalysis:
         return {
             "average_speed": avg_speed
         }
+
+    def compute_speed_metrics_for_window(self, start_time, end_time, reward_times=None, matched_zone_times=None):
+        # Restrict to the current quarter
+        speed_times = self.treadmill_interp.index
+        speeds = self.treadmill_interp.values
+
+        # Always prepare reward_zone_times_flat
+        reward_texture_change_time = LickAnalysis(self.trial_log_path, self.capacitive_path).prepare_arrays()
+        reward_zone_times_flat = reward_texture_change_time.flatten()
+        reward_zone_times_flat = pd.to_numeric(reward_zone_times_flat, errors='coerce')
+        reward_zone_times_flat = reward_zone_times_flat[~np.isnan(reward_zone_times_flat)]
+
+        # If reward_times and matched_zone_times are provided, use them
+        if reward_times is not None and matched_zone_times is not None:
+            reward_times_valid = reward_times
+            matched_zone_times_valid = matched_zone_times
+            reward_delays = reward_times_valid - matched_zone_times_valid
+        else:
+            # Fallback to old logic (for non-quarter use)
+            trial_log_window = self.trial_log_df[
+                (self.trial_log_df['reward_event'] >= start_time) & (self.trial_log_df['reward_event'] < end_time)
+            ]
+            if trial_log_window.empty:
+                return {
+                    "average_speed_before_reward": np.nan,
+                    "average_speed_before_reward_zone": np.nan,
+                    "average_speed_after_reward": np.nan,
+                    "no_reward_speed_before": np.nan,
+                    "no_reward_speed_after": np.nan
+                }
+            reward_times = pd.to_numeric(trial_log_window['reward_event'], errors='coerce').dropna().values
+            matched_zone_times = LickAnalysis.get_reward_zone_times_for_rewards(reward_times, reward_zone_times_flat)
+            valid = ~np.isnan(matched_zone_times)
+            reward_times_valid = reward_times[valid]
+            matched_zone_times_valid = matched_zone_times[valid]
+            reward_delays = reward_times_valid - matched_zone_times_valid
+
+        # Average speed before reward (between zone and reward)
+        speeds_before_reward = [
+            self.treadmill_interp[(speed_times >= t_change) & (speed_times < t_reward)].mean()
+            for t_change, t_reward in zip(matched_zone_times_valid, reward_times_valid)
+            if np.any((speed_times >= t_change) & (speed_times < t_reward))
+        ]
+        avg_speed_before_reward = np.nanmean(speeds_before_reward) if speeds_before_reward else np.nan
+
+        # Average speed before reward zone (same logic as licks)
+        speeds_before_reward_zone = [
+            self.treadmill_interp[(speed_times >= (t_change - delay)) & (speed_times < t_change)].mean()
+            for t_change, delay in zip(matched_zone_times_valid, reward_delays)
+            if np.any((speed_times >= (t_change - delay)) & (speed_times < t_change))
+        ]
+        avg_speed_before_reward_zone = np.nanmean(speeds_before_reward_zone) if speeds_before_reward_zone else np.nan
+
+        # Average speed after reward (from reward to reward+delay)
+        speeds_after_reward = [
+            self.treadmill_interp[(speed_times >= t_reward) & (speed_times < (t_reward + delay))].mean()
+            for t_reward, delay in zip(reward_times_valid, reward_delays)
+            if np.any((speed_times >= t_reward) & (speed_times < (t_reward + delay)))
+        ]
+        avg_speed_after_reward = np.nanmean(speeds_after_reward) if speeds_after_reward else np.nan
+
+        # --- New logic for reward zones with NO reward delivery ---
+        reward_zones_in_window = reward_zone_times_flat[(reward_zone_times_flat >= start_time) & (reward_zone_times_flat < end_time)]
+
+        no_reward_zones = []
+        for t_zone in reward_zones_in_window:
+            is_zone_used = False
+            for t_reward in reward_times:
+                prior_zones = reward_zone_times_flat[reward_zone_times_flat < t_reward]
+                if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
+                    is_zone_used = True
+                    break
+            if not is_zone_used:
+                no_reward_zones.append(t_zone)
+
+        # Calculate average speed 2s before and after for these zones
+        no_reward_speed_before = [
+            self.treadmill_interp[(speed_times >= (t_zone - 2)) & (speed_times < t_zone)].mean()
+            for t_zone in no_reward_zones
+        ]
+        no_reward_speed_after = [
+            self.treadmill_interp[(speed_times >= t_zone) & (speed_times < t_zone + 2)].mean()
+            for t_zone in no_reward_zones
+        ]
+        avg_no_reward_speed_before = np.nanmean(no_reward_speed_before) if no_reward_speed_before else np.nan
+        avg_no_reward_speed_after = np.nanmean(no_reward_speed_after) if no_reward_speed_after else np.nan
+
+        # Calculate ratio, mirroring lick analysis
+        ratio_speed_before_reward_to_before_zone = (
+            avg_speed_before_reward / avg_speed_before_reward_zone
+            if avg_speed_before_reward_zone and avg_speed_before_reward_zone != 0 else np.nan
+        )
+
+        return {
+            "average_speed_before_reward": avg_speed_before_reward,
+            "average_speed_before_reward_zone": avg_speed_before_reward_zone,
+            "average_speed_after_reward": avg_speed_after_reward,
+            "no_reward_speed_before": avg_no_reward_speed_before,
+            "no_reward_speed_after": avg_no_reward_speed_after,
+            "ratio_speed_before_reward_to_before_zone": ratio_speed_before_reward_to_before_zone
+        }
+    
+    def analyze_zones_without_rewards(self):
+        min_time = self.capacitive_df['elapsed_time'].min()
+        max_time = self.capacitive_df['elapsed_time'].max()
+        quarter_length = (max_time - min_time) / 4
+
+        # Prepare reward zone and reward times
+        reward_texture_change_time = LickAnalysis(self.trial_log_path, self.capacitive_path).prepare_arrays()
+        reward_change_times_flat = reward_texture_change_time.flatten()
+        reward_change_times_flat = pd.to_numeric(reward_change_times_flat, errors='coerce')
+        reward_change_times_flat = reward_change_times_flat[~np.isnan(reward_change_times_flat)]
+        reward_times = pd.to_numeric(self.trial_log_df['reward_event'], errors='coerce').dropna().values
+
+        results = []
+        for i in range(4):
+            start = min_time + i * quarter_length
+            end = min_time + (i + 1) * quarter_length
+
+            # Reward zones in this quarter
+            zones_in_quarter = reward_change_times_flat[(reward_change_times_flat >= start) & (reward_change_times_flat < end)]
+            # Rewards in this quarter
+            rewards_in_quarter = reward_times[(reward_times >= start) & (reward_times < end)]
+
+            if len(zones_in_quarter) > 0 and len(rewards_in_quarter) == 0:
+                speeds_before = []
+                speeds_after = []
+                for t_zone in zones_in_quarter:
+                    # Average speed 2s before the zone
+                    mask_before = (self.treadmill_interp.index >= (t_zone - 2)) & (self.treadmill_interp.index < t_zone)
+                    speeds_before.append(self.treadmill_interp[mask_before].mean())
+                    # Average speed 2s after the zone
+                    mask_after = (self.treadmill_interp.index >= t_zone) & (self.treadmill_interp.index < t_zone + 2)
+                    speeds_after.append(self.treadmill_interp[mask_after].mean())
+                avg_speed_before = np.nanmean(speeds_before) if speeds_before else np.nan
+                avg_speed_after = np.nanmean(speeds_after) if speeds_after else np.nan
+                results.append({
+                    "quarter": i + 1,
+                    "start": start,
+                    "end": end,
+                    "avg_speed_2s_before_zone": avg_speed_before,
+                    "avg_speed_2s_after_zone": avg_speed_after,
+                    "n_zones": len(zones_in_quarter)
+                })
+        return results
 
 class LickMetricsAppender:
     def __init__(self, csv_path):
@@ -384,6 +529,27 @@ class LickMetricsAppender:
             df.at[row_index, col] = hits_to_misses_ratios[i]
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
+
+class SpeedMetricsAppender:
+    def __init__(self, csv_path):
+        self.csv_path = csv_path
+
+    def append_quarter_speed_ratios(self, row_index, speed_ratios):
+        df = pd.read_csv(self.csv_path)
+        # Ensure columns exist
+        for i in range(4):
+            col = f'SpeedRatio_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+
+        # Write ratios, replacing nan with 0
+        for i, ratio in enumerate(speed_ratios):
+            col = f'SpeedRatio_Q{i+1}'
+            value = 0 if pd.isna(ratio) else ratio
+            df.at[row_index, col] = value
+
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with speed quarter ratios in {os.path.basename(self.csv_path)}.")
 
 class LickPlotter:
     @staticmethod
@@ -473,6 +639,67 @@ class LickPlotter:
         plt.tight_layout()
         return fig3, ax3
 
+class SpeedPlotter:
+    @staticmethod
+    def plot_speed_metrics(df_speed_quarters):
+        fig, ax = plt.subplots(figsize=(12, 7))
+        quarters = df_speed_quarters['Quarter']
+        x = np.arange(len(quarters))
+        width = 0.13
+
+        ax.bar(x - 2*width, df_speed_quarters['average_speed_before_reward'], width, label='Speed Before Reward')
+        ax.bar(x - width, df_speed_quarters['average_speed_before_reward_zone'], width, label='Speed Before Reward Zone')
+        ax.bar(x, df_speed_quarters['average_speed_after_reward'], width, label='Speed After Reward')
+        ax.bar(x + width, df_speed_quarters['no_reward_speed_before'], width, label='Speed 2s Before No-Reward Zone')
+        ax.bar(x + 2*width, df_speed_quarters['no_reward_speed_after'], width, label='Speed 2s After No-Reward Zone')
+
+        for idx, row in df_speed_quarters.iterrows():
+            xpos = x[idx]
+            ymax = max(
+                row['average_speed_before_reward'],
+                row['average_speed_before_reward_zone'],
+                row['average_speed_after_reward'],
+                0 if np.isnan(row['no_reward_speed_before']) else row['no_reward_speed_before'],
+                0 if np.isnan(row['no_reward_speed_after']) else row['no_reward_speed_after']
+            )
+            # Annotate with ratio
+            ratio = row.get('ratio_speed_before_reward_to_before_zone', np.nan)
+            ax.text(xpos, ymax + 0.5, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
+            # Optionally, annotate with number of no-reward zones if you have that column
+            if 'n_no_reward_zones' in row:
+                n_no_reward = row['n_no_reward_zones']
+                if n_no_reward > 0:
+                    ax.text(xpos, ymax + 1.5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(quarters)
+        ax.set_ylabel('Speed (units)')
+        ax.set_title('Speed Metrics by Session Quarter')
+        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.tight_layout()
+        return fig, ax
+
+    @staticmethod
+    def plot_speed_metrics_table(df_speed_quarters, table_columns):
+        table_data = df_speed_quarters[table_columns].copy()
+        table_data = table_data.round(2)
+        table_data = table_data.fillna('')
+
+        fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
+        ax2.axis('off')
+        mpl_table = ax2.table(
+            cellText=table_data.values,
+            colLabels=table_data.columns,
+            loc='center',
+            cellLoc='center'
+        )
+        mpl_table.auto_set_font_size(False)
+        mpl_table.set_fontsize(10)
+        mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
+        plt.title("Speed Metrics Table by Quarter")
+        plt.tight_layout()
+        return fig2, ax2
+
 if __name__ == "__main__":
     # File paths
     trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
@@ -486,11 +713,8 @@ if __name__ == "__main__":
     # Speed analysis
     speed_analysis = SpeedAnalysis(trial_log_path, capacitive_path, treadmill_path)
     quarters = speed_analysis.get_session_quarters()
-    for q in quarters:
-        metrics = speed_analysis.compute_metrics_for_window(q['start'], q['end'])
-        print(f"Quarter {q['start']}–{q['end']}: Avg speed = {metrics['average_speed']}")
 
-    # Collect metrics for each quarter
+    # Collect lick metrics for each quarter
     quarters = analysis.get_session_quarters()
     quarter_data = []
     reward_texture_change_time = analysis.prepare_arrays()
@@ -519,7 +743,7 @@ if __name__ == "__main__":
         # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
         # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
         # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
-        # print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
+        #print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
         # # Print if no-reward zone data exists
         # if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
         #     print(f"  No-reward zones present in this quarter:")
@@ -535,6 +759,23 @@ if __name__ == "__main__":
         print(f"Quarter {result['quarter']}: Avg licks 2s before zone = {result['avg_licks_2s_before_zone']}, "
               f"Avg licks 2s after zone = {result['avg_licks_2s_after_zone']}, "
               f"Number of zones = {result['n_zones']}")
+
+    # Analyze speed for reward zones with no reward delivery (per quarter)
+    for i, q in enumerate(quarters):
+        start = q['start']
+        end = q['end']
+        speed_metrics = speed_analysis.compute_speed_metrics_for_window(
+            start, end,
+            reward_times=q['reward_times'],
+            matched_zone_times=q['matched_zone_times']
+        )
+        # print(f"Quarter {i+1}: Avg speed before reward: {speed_metrics['average_speed_before_reward']}, "
+        #       f"before reward zone: {speed_metrics['average_speed_before_reward_zone']}, "
+        #       f"after reward: {speed_metrics['average_speed_after_reward']}")
+        # # Print speed for reward zones with no reward delivery
+        # print(f"  No-reward zones present in this quarter (speed):")
+        # print(f"    Avg speed 2s before zone: {speed_metrics['no_reward_speed_before']}")
+        # print(f"    Avg speed 2s after zone: {speed_metrics['no_reward_speed_after']}")
 
     # Create DataFrame
     df_quarters = pd.DataFrame(quarter_data)
@@ -581,7 +822,7 @@ if __name__ == "__main__":
         'n_no_reward_zones',
     ])
     LickPlotter.plot_hits_misses_bar(df_quarters)
-    plt.show()
+    #plt.show()
 
     # Prompt for row index
     row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
@@ -608,3 +849,42 @@ if __name__ == "__main__":
 
     # Append hits to misses ratios
     appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
+
+    # Collect speed metrics for each quarter
+    speed_quarter_data = []
+    for i, q in enumerate(quarters):
+        start = q['start']
+        end = q['end']
+        speed_metrics_quarter = speed_analysis.compute_speed_metrics_for_window(
+            start, end,
+            reward_times=q['reward_times'],
+            matched_zone_times=q['matched_zone_times']
+        )
+        speed_metrics_quarter['Quarter'] = f'Q{i+1}'
+        speed_quarter_data.append(speed_metrics_quarter)
+
+    # Create DataFrame
+    df_speed_quarters = pd.DataFrame(speed_quarter_data)
+
+    # After collecting your speed metrics for each quarter into a DataFrame:
+    SpeedPlotter.plot_speed_metrics(df_speed_quarters)
+    SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
+        'Quarter',
+        'average_speed_before_reward',
+        'average_speed_before_reward_zone',
+        'average_speed_after_reward',
+        'ratio_speed_before_reward_to_before_zone',
+        'no_reward_speed_before',
+        'no_reward_speed_after'
+    ])
+    # Collect speed ratios for each quarter
+    speed_quarter_ratios = [
+        0 if pd.isna(row['ratio_speed_before_reward_to_before_zone']) else row['ratio_speed_before_reward_to_before_zone']
+        for _, row in df_speed_quarters.iterrows()
+    ]
+
+    # Append to CSV
+    speed_appender = SpeedMetricsAppender(csv_path)
+    speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
+
+    plt.show()
