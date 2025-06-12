@@ -5,13 +5,11 @@ import os
 import matplotlib.pyplot as plt
 
 class LickAnalysis:
-    def __init__(self, trial_log_path, treadmill_path, capacitive_path):
+    def __init__(self, trial_log_path, capacitive_path):
         self.trial_log_path = trial_log_path
-        self.treadmill_path = treadmill_path
         self.capacitive_path = capacitive_path
 
         self.trial_log_df = pd.read_csv(trial_log_path, engine='python')
-        self.treadmill_df = pd.read_csv(treadmill_path, comment='/', engine='python')
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
         self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.90)) / 2
@@ -118,6 +116,7 @@ class LickAnalysis:
         """Return a list of dicts for each quarter with (start, end, reward_delays)."""
         min_time = self.capacitive_df['elapsed_time'].min()
         max_time = self.capacitive_df['elapsed_time'].max()
+        print(f"[LickAnalysis] min_time: {min_time}, max_time: {max_time}")
         quarter_length = (max_time - min_time) / 4
 
         # Prepare arrays for reward zone and reward times
@@ -310,6 +309,49 @@ class LickAnalysis:
                 })
         return results
 
+class SpeedAnalysis:
+    def __init__(self, trial_log_path, capacitive_path, treadmill_path):
+        self.trial_log_path = trial_log_path
+        self.capacitive_path = capacitive_path
+        self.treadmill_path = treadmill_path
+
+        self.trial_log_df = pd.read_csv(trial_log_path, engine='python')
+        self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
+        self.treadmill_df = pd.read_csv(treadmill_path, comment='/', engine='python')
+
+        # Interpolate treadmill speed to capacitive elapsed_time
+        self.treadmill_interp = pd.Series(
+            data=np.interp(
+                self.capacitive_df['elapsed_time'],
+                self.treadmill_df['global_time'],
+                self.treadmill_df['speed']
+            ),
+            index=self.capacitive_df['elapsed_time']
+        )
+
+    def get_session_quarters(self):
+        min_time = self.capacitive_df['elapsed_time'].min()
+        max_time = self.capacitive_df['elapsed_time'].max()
+        quarter_length = (max_time - min_time) / 4
+        print(f"[SpeedAnalysis] min_time: {min_time}, max_time: {max_time}")
+
+        quarters = []
+        for i in range(4):
+            start = min_time + i * quarter_length
+            end = min_time + (i + 1) * quarter_length
+            quarters.append({"start": start, "end": end})
+        return quarters
+
+    def compute_metrics_for_window(self, start_time, end_time):
+        # Get the interpolated speed values in this window
+        mask = (self.treadmill_interp.index >= start_time) & (self.treadmill_interp.index < end_time)
+        speeds_in_window = self.treadmill_interp[mask]
+        avg_speed = speeds_in_window.mean() if not speeds_in_window.empty else np.nan
+
+        return {
+            "average_speed": avg_speed
+        }
+
 class LickMetricsAppender:
     def __init__(self, csv_path):
         self.csv_path = csv_path
@@ -438,9 +480,15 @@ if __name__ == "__main__":
     capacitive_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
-    # Run analysis
-    analysis = LickAnalysis(trial_log_path, treadmill_path, capacitive_path)
-    #metrics = analysis.compute_metrics()
+    # Run lick analysis
+    analysis = LickAnalysis(trial_log_path, capacitive_path)
+  
+    # Speed analysis
+    speed_analysis = SpeedAnalysis(trial_log_path, capacitive_path, treadmill_path)
+    quarters = speed_analysis.get_session_quarters()
+    for q in quarters:
+        metrics = speed_analysis.compute_metrics_for_window(q['start'], q['end'])
+        print(f"Quarter {q['start']}–{q['end']}: Avg speed = {metrics['average_speed']}")
 
     # Collect metrics for each quarter
     quarters = analysis.get_session_quarters()
