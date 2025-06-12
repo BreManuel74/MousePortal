@@ -15,7 +15,7 @@ class LickAnalysis:
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
         self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.90)) / 2
-        print(f"Using lick cutoff value: {self.lick_cutoff}")
+        #print(f"Using lick cutoff value: {self.lick_cutoff}")
         self.lick_bout_times = self.capacitive_df.loc[
             self.capacitive_df['capacitive_value'] > self.lick_cutoff, 'elapsed_time'
         ].values
@@ -331,6 +331,18 @@ class LickMetricsAppender:
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with quarter ratios in {os.path.basename(self.csv_path)}.")
 
+    def append_hits_to_misses_ratios(self, row_index, hits_to_misses_ratios):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'HitsToMisses_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            # Ensure dtype is object so we can store strings
+            df[col] = df[col].astype(object)
+            df.at[row_index, col] = hits_to_misses_ratios[i]
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
+
 if __name__ == "__main__":
     # File paths
     trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
@@ -345,6 +357,11 @@ if __name__ == "__main__":
     # Collect metrics for each quarter
     quarters = analysis.get_session_quarters()
     quarter_data = []
+    reward_texture_change_time = analysis.prepare_arrays()
+    reward_zone_times_flat = reward_texture_change_time.flatten()
+    reward_zone_times_flat = pd.to_numeric(reward_zone_times_flat, errors='coerce')
+    reward_zone_times_flat = reward_zone_times_flat[~np.isnan(reward_zone_times_flat)]
+
     for i, q in enumerate(quarters):
         start = q['start']
         end = q['end']
@@ -354,22 +371,27 @@ if __name__ == "__main__":
             matched_zone_times=q['matched_zone_times']
         )
         metrics_quarter['Quarter'] = f'Q{i+1}'
+        metrics_quarter[f'Q{i+1}_hits'] = len(q['reward_times'])
+        reward_zones_in_quarter = reward_zone_times_flat[(reward_zone_times_flat >= start) & (reward_zone_times_flat < end)]
+        metrics_quarter[f'Q{i+1}_reward_zones'] = len(reward_zones_in_quarter)
+        # Add Q#_misses: reward_zones - hits
+        metrics_quarter[f'Q{i+1}_misses'] = len(reward_zones_in_quarter) - len(q['reward_times'])
         quarter_data.append(metrics_quarter)
         # Print metrics for each quarter
-        print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
-        print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
-        print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
-        print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
-        print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
-        print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
-        # Print if no-reward zone data exists
-        if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
-            print(f"  No-reward zones present in this quarter:")
-            print(f"    Avg licks 2s before zone: {metrics_quarter['no_reward_licks_before']}")
-            print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
-        else:
-            print(f"  No-reward zones: None in this quarter")
-        print()
+        # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
+        # print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
+        # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
+        # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
+        # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
+        # print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
+        # # Print if no-reward zone data exists
+        # if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
+        #     print(f"  No-reward zones present in this quarter:")
+        #     print(f"    Avg licks 2s before zone: {metrics_quarter['no_reward_licks_before']}")
+        #     print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
+        # else:
+        #     print(f"  No-reward zones: None in this quarter")
+        # print()
 
     # Analyze zones without rewards
     zone_analysis_results = analysis.analyze_zones_without_rewards()
@@ -381,18 +403,23 @@ if __name__ == "__main__":
     # Create DataFrame
     df_quarters = pd.DataFrame(quarter_data)
 
+    # Optionally, add Q#_hits columns for clarity (not strictly necessary if already in DataFrame)
+    for i in range(4):
+        col_hits = f'Q{i+1}_hits'
+        col_reward_zones = f'Q{i+1}_reward_zones'
+        col_misses = f'Q{i+1}_misses'
+        if col_hits not in df_quarters.columns:
+            df_quarters[col_hits] = [row.get(col_hits, 0) for row in quarter_data]
+        if col_reward_zones not in df_quarters.columns:
+            df_quarters[col_reward_zones] = [row.get(col_reward_zones, 0) for row in quarter_data]
+        if col_misses not in df_quarters.columns:
+            df_quarters[col_misses] = [row.get(col_misses, 0) for row in quarter_data]
+
     # Collect ratio values for each quarter
     quarter_ratios = [
         0 if pd.isna(row['ratio_licks_before_reward_to_before_zone']) else row['ratio_licks_before_reward_to_before_zone']
         for _, row in df_quarters.iterrows()
     ]
-
-    # Prompt for row index
-    row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
-
-    # Append quarter ratios
-    appender = LickMetricsAppender(csv_path)
-    appender.append_quarter_ratios(row_index, quarter_ratios)
 
     # Add no-reward zone counts and averages to the DataFrame
     df_quarters['no_reward_licks_before'] = df_quarters['no_reward_licks_before'].astype(float)
@@ -454,7 +481,10 @@ if __name__ == "__main__":
         'ratio_licks_before_reward_to_before_zone',
         'no_reward_licks_before',
         'no_reward_licks_after',
-        'n_no_reward_zones'
+        'n_no_reward_zones',
+        # 'Q1_hits', 'Q2_hits', 'Q3_hits', 'Q4_hits',
+        # 'Q1_reward_zones', 'Q2_reward_zones', 'Q3_reward_zones', 'Q4_reward_zones',
+        # 'Q1_misses', 'Q2_misses', 'Q3_misses', 'Q4_misses'
     ]
 
     # Prepare data for the table
@@ -476,4 +506,59 @@ if __name__ == "__main__":
     mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
     plt.title("Lick Metrics Table by Quarter")
     plt.tight_layout()
+    #plt.show()
+
+    # Prepare data for hits and misses bar chart
+    hits = [0 if pd.isna(df_quarters[f'Q{i+1}_hits'].iloc[i]) else df_quarters[f'Q{i+1}_hits'].iloc[i] for i in range(4)]
+    misses = [0 if pd.isna(df_quarters[f'Q{i+1}_misses'].iloc[i]) else df_quarters[f'Q{i+1}_misses'].iloc[i] for i in range(4)]
+    quarters_labels = [f'Q{i+1}' for i in range(4)]
+    x = np.arange(len(quarters_labels))
+    width = 0.35
+
+    fig3, ax3 = plt.subplots(figsize=(8, 5))
+    rects1 = ax3.bar(x - width/2, hits, width, label='Hits', color='green')
+    rects2 = ax3.bar(x + width/2, misses, width, label='Misses', color='red')
+
+    ax3.set_ylabel('Count')
+    ax3.set_title('Hits and Misses by Quarter')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(quarters_labels)
+    ax3.legend()
+
+    # Annotate bars with values
+    for rect in rects1 + rects2:
+        height = rect.get_height()
+        ax3.annotate(f'{int(height)}',
+                     xy=(rect.get_x() + rect.get_width() / 2, height),
+                     xytext=(0, 3),  # 3 points vertical offset
+                     textcoords="offset points",
+                     ha='center', va='bottom', fontsize=10)
+
+    plt.tight_layout()
     plt.show()
+
+    # Prompt for row index
+    row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
+
+    # Append quarter ratios
+    appender = LickMetricsAppender(csv_path)
+    appender.append_quarter_ratios(row_index, quarter_ratios)
+
+    # Calculate hits to misses ratios for each quarter with explicit indication
+    hits_to_misses_ratios = []
+    for i in range(4):
+        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
+        misses_val = df_quarters[f'Q{i+1}_misses'].iloc[i]
+        if pd.isna(hits_val) and pd.isna(misses_val):
+            hits_to_misses_ratios.append("no_data")
+        elif (hits_val == 0 or pd.isna(hits_val)) and (misses_val != 0 and not pd.isna(misses_val)):
+            hits_to_misses_ratios.append("no_hits")
+        elif (misses_val == 0 or pd.isna(misses_val)) and (hits_val != 0 and not pd.isna(hits_val)):
+            hits_to_misses_ratios.append("no_misses")
+        elif misses_val == 0 or pd.isna(misses_val):
+            hits_to_misses_ratios.append("no_misses")
+        else:
+            hits_to_misses_ratios.append(hits_val / misses_val)
+
+    # Append hits to misses ratios
+    appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
