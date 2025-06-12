@@ -343,6 +343,94 @@ class LickMetricsAppender:
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
 
+class LickPlotter:
+    @staticmethod
+    def plot_lick_metrics(df_quarters):
+        fig, ax = plt.subplots(figsize=(12, 7))
+        quarters = df_quarters['Quarter']
+        x = np.arange(len(quarters))
+        width = 0.13
+
+        ax.bar(x - 2*width, df_quarters['average_licks_before_reward'], width, label='Licks Before Reward')
+        ax.bar(x - width, df_quarters['average_licks_before_reward_zone'], width, label='Licks Before Reward Zone')
+        ax.bar(x, df_quarters['average_licks_after_reward'], width, label='Licks After Reward')
+        ax.bar(x + width, df_quarters['no_reward_licks_before'], width, label='Licks 2s Before No-Reward Zone')
+        ax.bar(x + 2*width, df_quarters['no_reward_licks_after'], width, label='Licks 2s After No-Reward Zone')
+
+        for idx, row in df_quarters.iterrows():
+            xpos = x[idx]
+            ymax = max(
+                row['average_licks_before_reward'],
+                row['average_licks_before_reward_zone'],
+                row['average_licks_after_reward'],
+                0 if np.isnan(row['no_reward_licks_before']) else row['no_reward_licks_before'],
+                0 if np.isnan(row['no_reward_licks_after']) else row['no_reward_licks_after']
+            )
+            ratio = row['ratio_licks_before_reward_to_before_zone']
+            ax.text(xpos, ymax + 1, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
+            n_no_reward = row['n_no_reward_zones']
+            if n_no_reward > 0:
+                ax.text(xpos, ymax + 5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(quarters)
+        ax.set_ylabel('Licks / Value')
+        ax.set_title('Lick Metrics by Session Quarter')
+        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.tight_layout()
+        return fig, ax
+
+    @staticmethod
+    def plot_lick_metrics_table(df_quarters, table_columns):
+        table_data = df_quarters[table_columns].copy()
+        table_data = table_data.round(2)
+        table_data = table_data.fillna('')
+
+        fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
+        ax2.axis('off')
+        mpl_table = ax2.table(
+            cellText=table_data.values,
+            colLabels=table_data.columns,
+            loc='center',
+            cellLoc='center'
+        )
+        mpl_table.auto_set_font_size(False)
+        mpl_table.set_fontsize(10)
+        mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
+        plt.title("Lick Metrics Table by Quarter")
+        plt.tight_layout()
+        return fig2, ax2
+
+    @staticmethod
+    def plot_hits_misses_bar(df_quarters):
+        hits = [0 if pd.isna(df_quarters[f'Q{i+1}_hits'].iloc[i]) else df_quarters[f'Q{i+1}_hits'].iloc[i] for i in range(4)]
+        misses = [0 if pd.isna(df_quarters[f'Q{i+1}_misses'].iloc[i]) else df_quarters[f'Q{i+1}_misses'].iloc[i] for i in range(4)]
+        quarters_labels = [f'Q{i+1}' for i in range(4)]
+        x = np.arange(len(quarters_labels))
+        width = 0.35
+
+        fig3, ax3 = plt.subplots(figsize=(8, 5))
+        rects1 = ax3.bar(x - width/2, hits, width, label='Hits', color='green')
+        rects2 = ax3.bar(x + width/2, misses, width, label='Misses', color='red')
+
+        ax3.set_ylabel('Count')
+        ax3.set_title('Hits and Misses by Quarter')
+        ax3.set_xticks(x)
+        ax3.set_xticklabels(quarters_labels)
+        ax3.legend()
+
+        # Annotate bars with values
+        for rect in rects1 + rects2:
+            height = rect.get_height()
+            ax3.annotate(f'{int(height)}',
+                         xy=(rect.get_x() + rect.get_width() / 2, height),
+                         xytext=(0, 3),  # 3 points vertical offset
+                         textcoords="offset points",
+                         ha='center', va='bottom', fontsize=10)
+
+        plt.tight_layout()
+        return fig3, ax3
+
 if __name__ == "__main__":
     # File paths
     trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
@@ -432,48 +520,9 @@ if __name__ == "__main__":
         for metrics_quarter in quarter_data
     ]
 
-    # Set up the plot
-    fig, ax = plt.subplots(figsize=(12, 7))
-
-    # Bar positions
-    quarters = df_quarters['Quarter']
-    x = np.arange(len(quarters))
-    width = 0.13
-
-    # Plot bars for each metric
-    ax.bar(x - 2*width, df_quarters['average_licks_before_reward'], width, label='Licks Before Reward')
-    ax.bar(x - width, df_quarters['average_licks_before_reward_zone'], width, label='Licks Before Reward Zone')
-    ax.bar(x, df_quarters['average_licks_after_reward'], width, label='Licks After Reward')
-    ax.bar(x + width, df_quarters['no_reward_licks_before'], width, label='Licks 2s Before No-Reward Zone')
-    ax.bar(x + 2*width, df_quarters['no_reward_licks_after'], width, label='Licks 2s After No-Reward Zone')
-
-    # Add ratio as text above bars
-    for idx, row in df_quarters.iterrows():
-        xpos = x[idx]
-        ymax = max(
-            row['average_licks_before_reward'],
-            row['average_licks_before_reward_zone'],
-            row['average_licks_after_reward'],
-            0 if np.isnan(row['no_reward_licks_before']) else row['no_reward_licks_before'],
-            0 if np.isnan(row['no_reward_licks_after']) else row['no_reward_licks_after']
-        )
-        ratio = row['ratio_licks_before_reward_to_before_zone']
-        ax.text(xpos, ymax + 1, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
-        # Also annotate number of no-reward zones if present
-        n_no_reward = row['n_no_reward_zones']
-        if n_no_reward > 0:
-            ax.text(xpos, ymax + 5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(quarters)
-    ax.set_ylabel('Licks / Value')
-    ax.set_title('Lick Metrics by Session Quarter')
-    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-    plt.tight_layout()
-    #plt.show()
-
-    # Select columns to display
-    table_columns = [
+    # Plotting
+    LickPlotter.plot_lick_metrics(df_quarters)
+    LickPlotter.plot_lick_metrics_table(df_quarters, [
         'Quarter',
         'average_licks_before_reward',
         'average_licks_before_reward_zone',
@@ -482,59 +531,8 @@ if __name__ == "__main__":
         'no_reward_licks_before',
         'no_reward_licks_after',
         'n_no_reward_zones',
-        # 'Q1_hits', 'Q2_hits', 'Q3_hits', 'Q4_hits',
-        # 'Q1_reward_zones', 'Q2_reward_zones', 'Q3_reward_zones', 'Q4_reward_zones',
-        # 'Q1_misses', 'Q2_misses', 'Q3_misses', 'Q4_misses'
-    ]
-
-    # Prepare data for the table
-    table_data = df_quarters[table_columns].copy()
-    table_data = table_data.round(2)
-    table_data = table_data.fillna('')
-
-    # Add a new figure for the table
-    fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
-    ax2.axis('off')
-    mpl_table = ax2.table(
-        cellText=table_data.values,
-        colLabels=table_data.columns,
-        loc='center',
-        cellLoc='center'
-    )
-    mpl_table.auto_set_font_size(False)
-    mpl_table.set_fontsize(10)
-    mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
-    plt.title("Lick Metrics Table by Quarter")
-    plt.tight_layout()
-    #plt.show()
-
-    # Prepare data for hits and misses bar chart
-    hits = [0 if pd.isna(df_quarters[f'Q{i+1}_hits'].iloc[i]) else df_quarters[f'Q{i+1}_hits'].iloc[i] for i in range(4)]
-    misses = [0 if pd.isna(df_quarters[f'Q{i+1}_misses'].iloc[i]) else df_quarters[f'Q{i+1}_misses'].iloc[i] for i in range(4)]
-    quarters_labels = [f'Q{i+1}' for i in range(4)]
-    x = np.arange(len(quarters_labels))
-    width = 0.35
-
-    fig3, ax3 = plt.subplots(figsize=(8, 5))
-    rects1 = ax3.bar(x - width/2, hits, width, label='Hits', color='green')
-    rects2 = ax3.bar(x + width/2, misses, width, label='Misses', color='red')
-
-    ax3.set_ylabel('Count')
-    ax3.set_title('Hits and Misses by Quarter')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(quarters_labels)
-    ax3.legend()
-
-    # Annotate bars with values
-    for rect in rects1 + rects2:
-        height = rect.get_height()
-        ax3.annotate(f'{int(height)}',
-                     xy=(rect.get_x() + rect.get_width() / 2, height),
-                     xytext=(0, 3),  # 3 points vertical offset
-                     textcoords="offset points",
-                     ha='center', va='bottom', fontsize=10)
-
-    plt.tight_layout()
+    ])
+    LickPlotter.plot_hits_misses_bar(df_quarters)
     plt.show()
 
     # Prompt for row index
