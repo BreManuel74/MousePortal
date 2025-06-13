@@ -505,14 +505,14 @@ class LickMetricsAppender:
         df = pd.read_csv(self.csv_path)
         # Ensure columns exist
         for i in range(4):
-            col = f'Ratio_Q{i+1}'
+            col = f'LickRatio_Q{i+1}'
             if col not in df.columns:
                 df[col] = np.nan
 
-        # Write ratios, replacing nan with 0
+        # Write ratios, replacing nan with 0 and rounding to 2 decimals
         for i, ratio in enumerate(ratios):
-            col = f'Ratio_Q{i+1}'
-            value = 0 if pd.isna(ratio) else ratio
+            col = f'LickRatio_Q{i+1}'
+            value = 0 if pd.isna(ratio) else round(ratio, 2)
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
@@ -542,10 +542,10 @@ class SpeedMetricsAppender:
             if col not in df.columns:
                 df[col] = np.nan
 
-        # Write ratios, replacing nan with 0
+        # Write ratios, replacing nan with 0 and rounding to 2 decimals
         for i, ratio in enumerate(speed_ratios):
             col = f'SpeedRatio_Q{i+1}'
-            value = 0 if pd.isna(ratio) else ratio
+            value = 0 if pd.isna(ratio) else round(ratio, 2)
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
@@ -704,9 +704,9 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021trial_log.csv'
-    treadmill_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021treadmill.csv'
-    capacitive_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021capacitive.csv'
+    trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
+    treadmill_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752treadmill.csv'
+    capacitive_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
     # Run lick analysis
@@ -826,13 +826,6 @@ if __name__ == "__main__":
     LickPlotter.plot_hits_misses_bar(df_quarters)
     #plt.show()
 
-    # Prompt for row index
-    row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
-
-    # Append quarter ratios
-    appender = LickMetricsAppender(csv_path)
-    appender.append_quarter_ratios(row_index, quarter_ratios)
-
     # Calculate hits to misses ratios for each quarter with explicit indication
     hits_to_misses_ratios = []
     for i in range(4):
@@ -848,9 +841,6 @@ if __name__ == "__main__":
             hits_to_misses_ratios.append("no_misses")
         else:
             hits_to_misses_ratios.append(hits_val / misses_val)
-
-    # Append hits to misses ratios
-    appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
 
     # Collect speed metrics for each quarter
     speed_quarter_data = []
@@ -885,8 +875,15 @@ if __name__ == "__main__":
         for _, row in df_speed_quarters.iterrows()
     ]
 
-    # Append to CSV
+    plt.show()
+
+    # Prompt for row index
+    row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
+
+    # Append quarter ratios
+    appender = LickMetricsAppender(csv_path)
+    appender.append_quarter_ratios(row_index, quarter_ratios)
+    # Append hits to misses ratios
+    appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
-
-    plt.show()
