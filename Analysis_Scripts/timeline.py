@@ -98,19 +98,19 @@ axs[0].plot(capacitive_df['elapsed_time'], capacitive_df['capacitive_value'], la
 # Reward events
 reward_times = pd.to_numeric(trial_log_df['reward_event'], errors='coerce').dropna()
 for i, rt in enumerate(reward_times):
-    axs[0].axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
+    axs[0].axvline(x=rt, color='green', linestyle='-', alpha=0.7, linewidth=2, label='Reward Event' if i == 0 else "")
 
 # Puff events
 if 'puff_event' in trial_log_df.columns:
     puff_times = pd.to_numeric(trial_log_df['puff_event'], errors='coerce').dropna()
     for i, pt in enumerate(puff_times):
-        axs[0].axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
+        axs[0].axvline(x=pt, color='red', linestyle='-', alpha=0.7, linewidth=2, label='Puff Event' if i == 0 else "")
 
 # Probe events
 if 'probe_time' in trial_log_df.columns:
     probe_times = pd.to_numeric(trial_log_df['probe_time'], errors='coerce').dropna()
     for i, pt in enumerate(probe_times):
-        axs[0].axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
+        axs[0].axvline(x=pt, color='black', linestyle='-', alpha=0.7, linewidth=2, label='Probe Event' if i == 0 else "")
 
 # Highlight reward intervals
 for trial_idx in range(reward_texture_change_time.shape[0]):
@@ -137,23 +137,34 @@ for trial_idx in range(punish_texture_change_time.shape[0]):
 axs[0].set_ylabel('Capacitive Value')
 axs[0].set_title('Capacitive Sensor Over Time with Reward and Puff Events')
 axs[0].legend(loc='upper right')
+axs[0].set_ylim(bottom=0)  # Set the bottom y-axis limit to 0
+
+# Remove top and right borders for both subplots
+for ax in axs:
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
 # --- Plot 2: Treadmill Speed ---
-axs[1].plot(capacitive_df['elapsed_time'], treadmill_interp, label='Treadmill Speed (interpolated)')
+axs[1].plot(
+    capacitive_df['elapsed_time'],
+    treadmill_interp,
+    label='Treadmill Speed (interpolated)',
+    color='purple'  # Set treadmill speed line to purple
+)
 
 # Reward events
 for i, rt in enumerate(reward_times):
-    axs[1].axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
+    axs[1].axvline(x=rt, color='green', linestyle='-', alpha=0.7, linewidth=2, label='Reward Event' if i == 0 else "")
 
 # Puff events
 if 'puff_event' in trial_log_df.columns:
     for i, pt in enumerate(puff_times):
-        axs[1].axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
+        axs[1].axvline(x=pt, color='red', linestyle='-', alpha=0.7, linewidth=2, label='Puff Event' if i == 0 else "")
 
 # Probe events
 if 'probe_time' in trial_log_df.columns:
     for i, pt in enumerate(probe_times):
-        axs[1].axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
+        axs[1].axvline(x=pt, color='black', linestyle='-', alpha=0.7, linewidth=2, label='Probe Event' if i == 0 else "")
 
 # Highlight reward intervals
 for trial_idx in range(reward_texture_change_time.shape[0]):
@@ -181,6 +192,12 @@ axs[1].set_xlabel('Elapsed Time (s)')
 axs[1].set_ylabel('Speed')
 axs[1].set_title('Interpolated Treadmill Speed Over Time with Reward and Puff Events')
 axs[1].legend(loc='upper right')
+
+# Set x-axis limits to the data range
+xmin = capacitive_df['elapsed_time'].min()
+xmax = capacitive_df['elapsed_time'].max()
+for ax in axs:
+    ax.set_xlim([xmin, xmax])
 
 plt.tight_layout()
 plt.show()
