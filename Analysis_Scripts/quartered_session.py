@@ -3,6 +3,7 @@ import ast
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 class LickAnalysis:
     def __init__(self, trial_log_path, capacitive_path):
@@ -581,8 +582,9 @@ class TrialNumberAppender:
 
 class LickPlotter:
     @staticmethod
-    def plot_lick_metrics(df_quarters):
-        fig, ax = plt.subplots(figsize=(12, 7))
+    def plot_lick_metrics(df_quarters, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(12, 7))
         quarters = df_quarters['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
@@ -610,11 +612,13 @@ class LickPlotter:
 
         ax.set_xticks(x)
         ax.set_xticklabels(quarters)
-        ax.set_ylabel('Licks / Value')
+        ax.set_xlim(-0.5, len(x) - 0.5)
+        ax.set_ylabel('Licks Bouts')
         ax.set_title('Lick Metrics by Session Quarter')
         ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        plt.tight_layout()
-        return fig, ax
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        return ax
 
     @staticmethod
     def plot_lick_metrics_table(df_quarters, table_columns):
@@ -636,44 +640,47 @@ class LickPlotter:
         plt.title("Lick Metrics Table by Quarter")
         plt.tight_layout()
         return fig2, ax2
-
+    
+class DPrimePlotter:
     @staticmethod
-    def plot_hits_misses_bar(df_quarters):
+    def plot_hits_misses_bar(df_quarters, ax=None):
         hits = [0 if pd.isna(df_quarters[f'Q{i+1}_hits'].iloc[i]) else df_quarters[f'Q{i+1}_hits'].iloc[i] for i in range(4)]
         misses = [0 if pd.isna(df_quarters[f'Q{i+1}_misses'].iloc[i]) else df_quarters[f'Q{i+1}_misses'].iloc[i] for i in range(4)]
         quarters_labels = [f'Q{i+1}' for i in range(4)]
         x = np.arange(len(quarters_labels))
         width = 0.35
 
-        fig3, ax3 = plt.subplots(figsize=(8, 5))
-        rects1 = ax3.bar(x - width/2, hits, width, label='Hits', color='green')
-        rects2 = ax3.bar(x + width/2, misses, width, label='Misses', color='red')
+        if ax is None:
+            fig3, ax = plt.subplots(figsize=(8, 5))
+        rects1 = ax.bar(x - width/2, hits, width, label='Hits', color='green')
+        rects2 = ax.bar(x + width/2, misses, width, label='Misses', color='red')
 
-        ax3.set_ylabel('Count')
-        ax3.set_title('Hits and Misses by Quarter')
-        ax3.set_xticks(x)
-        ax3.set_xticklabels(quarters_labels)
-        ax3.legend()
+        ax.set_ylabel('Count')
+        ax.set_title('Hits and Misses by Quarter')
+        ax.set_xticks(x)
+        ax.set_xticklabels(quarters_labels)
+        ax.set_xlim(-0.5, len(x) - 0.5)
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
         # Annotate bars with values
         for rect in rects1 + rects2:
             height = rect.get_height()
-            ax3.annotate(f'{int(height)}',
+            ax.annotate(f'{int(height)}',
                          xy=(rect.get_x() + rect.get_width() / 2, height),
                          xytext=(0, 3),  # 3 points vertical offset
                          textcoords="offset points",
                          ha='center', va='bottom', fontsize=10)
-
-        plt.tight_layout()
-        return fig3, ax3
+        return ax
 
 class SpeedPlotter:
     @staticmethod
-    def plot_speed_metrics(df_speed_quarters):
-        # Fill NaNs with 0 for plotting
+    def plot_speed_metrics(df_speed_quarters, ax=None):
         df_plot = df_speed_quarters.fillna(0)
-
-        fig, ax = plt.subplots(figsize=(12, 7))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(12, 7))
         quarters = df_plot['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
@@ -693,7 +700,6 @@ class SpeedPlotter:
                 row['no_reward_speed_before'],
                 row['no_reward_speed_after']
             )
-            # Annotate with ratio
             ratio = row.get('ratio_speed_before_reward_to_before_zone', 0)
             ax.text(xpos, ymax + 0.5, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
             if 'n_no_reward_zones' in row:
@@ -703,11 +709,13 @@ class SpeedPlotter:
 
         ax.set_xticks(x)
         ax.set_xticklabels(quarters)
-        ax.set_ylabel('Speed (units)')
+        ax.set_xlim(-0.5, len(x) - 0.5)
+        ax.set_ylabel('Speed')
         ax.set_title('Speed Metrics by Session Quarter')
         ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        plt.tight_layout()
-        return fig, ax
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        return ax
 
     @staticmethod
     def plot_speed_metrics_table(df_speed_quarters, table_columns):
@@ -842,7 +850,6 @@ if __name__ == "__main__":
     ]
 
     # Plotting
-    LickPlotter.plot_lick_metrics(df_quarters)
     LickPlotter.plot_lick_metrics_table(df_quarters, [
         'Quarter',
         'average_licks_before_reward',
@@ -853,8 +860,6 @@ if __name__ == "__main__":
         'no_reward_licks_after',
         'n_no_reward_zones',
     ])
-    LickPlotter.plot_hits_misses_bar(df_quarters)
-    #plt.show()
 
     # Calculate hits to misses ratios for each quarter with explicit indication
     hits_to_misses_ratios = []
@@ -889,7 +894,6 @@ if __name__ == "__main__":
     df_speed_quarters = pd.DataFrame(speed_quarter_data)
 
     # After collecting your speed metrics for each quarter into a DataFrame:
-    SpeedPlotter.plot_speed_metrics(df_speed_quarters)
     SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
         'Quarter',
         'average_speed_before_reward',
@@ -899,12 +903,22 @@ if __name__ == "__main__":
         'no_reward_speed_before',
         'no_reward_speed_after'
     ])
+
     # Collect speed ratios for each quarter
     speed_quarter_ratios = [
         0 if pd.isna(row['ratio_speed_before_reward_to_before_zone']) else row['ratio_speed_before_reward_to_before_zone']
         for _, row in df_speed_quarters.iterrows()
     ]
 
+    # Create a single figure with 3 subplots (vertical)
+    fig, axs = plt.subplots(3, 1, figsize=(14, 18))
+
+    # Plot each metric on its own subplot
+    LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
+    DPrimePlotter.plot_hits_misses_bar(df_quarters, ax=axs[1])
+    SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
+
+    plt.tight_layout()
     plt.show()
 
     # Prompt for row index
