@@ -621,14 +621,15 @@ class LickPlotter:
         return ax
 
     @staticmethod
-    def plot_lick_metrics_table(df_quarters, table_columns):
+    def plot_lick_metrics_table(df_quarters, table_columns, ax=None):
         table_data = df_quarters[table_columns].copy()
         table_data = table_data.round(2)
         table_data = table_data.fillna('')
 
-        fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
-        ax2.axis('off')
-        mpl_table = ax2.table(
+        if ax is None:
+            fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
+        ax.axis('off')
+        mpl_table = ax.table(
             cellText=table_data.values,
             colLabels=table_data.columns,
             loc='center',
@@ -637,9 +638,8 @@ class LickPlotter:
         mpl_table.auto_set_font_size(False)
         mpl_table.set_fontsize(10)
         mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
-        plt.title("Lick Metrics Table by Quarter")
-        plt.tight_layout()
-        return fig2, ax2
+        ax.set_title("Lick Metrics Table by Quarter")
+        return ax
     
 class DPrimePlotter:
     @staticmethod
@@ -718,14 +718,15 @@ class SpeedPlotter:
         return ax
 
     @staticmethod
-    def plot_speed_metrics_table(df_speed_quarters, table_columns):
+    def plot_speed_metrics_table(df_speed_quarters, table_columns, ax=None):
         table_data = df_speed_quarters[table_columns].copy()
         table_data = table_data.round(2)
         table_data = table_data.fillna(0)  # Fill NaNs with 0
 
-        fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
-        ax2.axis('off')
-        mpl_table = ax2.table(
+        if ax is None:
+            fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
+        ax.axis('off')
+        mpl_table = ax.table(
             cellText=table_data.values,
             colLabels=table_data.columns,
             loc='center',
@@ -734,9 +735,8 @@ class SpeedPlotter:
         mpl_table.auto_set_font_size(False)
         mpl_table.set_fontsize(10)
         mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
-        plt.title("Speed Metrics Table by Quarter")
-        plt.tight_layout()
-        return fig2, ax2
+        ax.set_title("Speed Metrics Table by Quarter")
+        return ax
 
 if __name__ == "__main__":
     # File paths
@@ -849,6 +849,8 @@ if __name__ == "__main__":
         for metrics_quarter in quarter_data
     ]
 
+    fig_tables, axs_tables = plt.subplots(2, 1, figsize=(14, 6))
+
     # Plotting
     LickPlotter.plot_lick_metrics_table(df_quarters, [
         'Quarter',
@@ -859,7 +861,8 @@ if __name__ == "__main__":
         'no_reward_licks_before',
         'no_reward_licks_after',
         'n_no_reward_zones',
-    ])
+    ]
+    , ax=axs_tables[0])
 
     # Calculate hits to misses ratios for each quarter with explicit indication
     hits_to_misses_ratios = []
@@ -902,7 +905,8 @@ if __name__ == "__main__":
         'ratio_speed_before_reward_to_before_zone',
         'no_reward_speed_before',
         'no_reward_speed_after'
-    ])
+    ],
+    ax=axs_tables[1])
 
     # Collect speed ratios for each quarter
     speed_quarter_ratios = [
