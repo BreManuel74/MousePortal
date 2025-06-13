@@ -4,9 +4,9 @@ import numpy as np
 import ast
 
 # File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827trial_log.csv'
-treadmill_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827treadmill.csv'
-capacitive_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827capacitive.csv'
+trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
+treadmill_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752treadmill.csv'
+capacitive_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752capacitive.csv'
 
 # Read the CSV files into pandas DataFrames
 trial_log_df = pd.read_csv(trial_log_path, engine='python')
@@ -83,132 +83,111 @@ treadmill_interp = pd.Series(
     data=np.interp(
         capacitive_df['elapsed_time'],
         treadmill_df['global_time'],
-        treadmill_df['distance']
+        treadmill_df['speed']
     ),
     index=capacitive_df['elapsed_time']
 )
 
 
 # Plot both on the same graph (capacitive only, with reward and puff events)
-plt.figure(figsize=(12, 5))
-plt.plot(capacitive_df['elapsed_time'], capacitive_df['capacitive_value'], label='Capacitive Value')
+fig, axs = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
 
-# Add vertical colored bars at each reward_event time (if not NaN)
+# --- Plot 1: Capacitive Value ---
+axs[0].plot(capacitive_df['elapsed_time'], capacitive_df['capacitive_value'], label='Capacitive Value')
+
+# Reward events
 reward_times = pd.to_numeric(trial_log_df['reward_event'], errors='coerce').dropna()
 for i, rt in enumerate(reward_times):
-    plt.axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
+    axs[0].axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
 
-# Add vertical colored bars at each puff_event time (if not NaN)
+# Puff events
 if 'puff_event' in trial_log_df.columns:
     puff_times = pd.to_numeric(trial_log_df['puff_event'], errors='coerce').dropna()
     for i, pt in enumerate(puff_times):
-        plt.axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
+        axs[0].axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
 
-# Add vertical colored bars at each prob_time (if not NaN)
+# Probe events
 if 'probe_time' in trial_log_df.columns:
     probe_times = pd.to_numeric(trial_log_df['probe_time'], errors='coerce').dropna()
     for i, pt in enumerate(probe_times):
-        plt.axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
+        axs[0].axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
 
-plt.xlabel('Elapsed Time (s)')
-plt.ylabel('Capacitive Value')
-plt.title('Capacitive Sensor Over Time with Reward and Puff Events')
-plt.legend()
-plt.tight_layout()
-#plt.show()
-
-# Highlight reward intervals on capacitive plot
+# Highlight reward intervals
 for trial_idx in range(reward_texture_change_time.shape[0]):
     for seg_idx in range(reward_texture_change_time.shape[1]):
         try:
             start = float(reward_texture_change_time[trial_idx, seg_idx])
             end = float(reward_revert_time[trial_idx, seg_idx])
             if not np.isnan(start) and not np.isnan(end):
-                plt.axvspan(start, end, color='green', alpha=0.15)
+                axs[0].axvspan(start, end, color='green', alpha=0.15)
         except (ValueError, TypeError):
             continue
 
-# Highlight punish intervals on capacitive plot
+# Highlight punish intervals
 for trial_idx in range(punish_texture_change_time.shape[0]):
     for seg_idx in range(punish_texture_change_time.shape[1]):
         try:
             start = float(punish_texture_change_time[trial_idx, seg_idx])
             end = float(punish_revert_time[trial_idx, seg_idx])
             if not np.isnan(start) and not np.isnan(end):
-                plt.axvspan(start, end, color='red', alpha=0.15)
+                axs[0].axvspan(start, end, color='red', alpha=0.15)
         except (ValueError, TypeError):
             continue
 
-plt.xlabel('Elapsed Time (s)')
-plt.ylabel('Capacitive Value')
-plt.title('Capacitive Sensor Over Time with Reward and Puff Events')
-plt.legend()
-plt.tight_layout()
-#plt.show()
+axs[0].set_ylabel('Capacitive Value')
+axs[0].set_title('Capacitive Sensor Over Time with Reward and Puff Events')
+axs[0].legend(loc='upper right')
 
-# Interpolate treadmill speed to match capacitive elapsed_time
-treadmill_speed_interp = pd.Series(
-    data=np.interp(
-        capacitive_df['elapsed_time'],
-        treadmill_df['global_time'],
-        treadmill_df['speed']
-    ),
-    index=capacitive_df['elapsed_time']
-)
+# --- Plot 2: Treadmill Speed ---
+axs[1].plot(capacitive_df['elapsed_time'], treadmill_interp, label='Treadmill Speed (interpolated)')
 
-# Plot interpolated treadmill speed over time
-plt.figure(figsize=(10, 4))
-plt.plot(capacitive_df['elapsed_time'], treadmill_speed_interp, label='Treadmill Speed (interpolated)')
-
-# Add vertical colored bars at each reward_event time (if not NaN)
-reward_times = pd.to_numeric(trial_log_df['reward_event'], errors='coerce').dropna()
+# Reward events
 for i, rt in enumerate(reward_times):
-    plt.axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
+    axs[1].axvline(x=rt, color='green', linestyle='-', alpha=0.7, label='Reward Event' if i == 0 else "")
 
-# Add vertical colored bars at each puff_event time (if not NaN)
+# Puff events
 if 'puff_event' in trial_log_df.columns:
-    puff_times = pd.to_numeric(trial_log_df['puff_event'], errors='coerce').dropna()
     for i, pt in enumerate(puff_times):
-        plt.axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
+        axs[1].axvline(x=pt, color='red', linestyle='-', alpha=0.7, label='Puff Event' if i == 0 else "")
 
-# Add vertical colored bars at each prob_time (if not NaN)
+# Probe events
 if 'probe_time' in trial_log_df.columns:
-    probe_times = pd.to_numeric(trial_log_df['probe_time'], errors='coerce').dropna()
     for i, pt in enumerate(probe_times):
-        plt.axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
+        axs[1].axvline(x=pt, color='black', linestyle='-', alpha=0.7, label='Probe Event' if i == 0 else "")
 
-# Highlight reward intervals on treadmill speed plot
+# Highlight reward intervals
 for trial_idx in range(reward_texture_change_time.shape[0]):
     for seg_idx in range(reward_texture_change_time.shape[1]):
         try:
             start = float(reward_texture_change_time[trial_idx, seg_idx])
             end = float(reward_revert_time[trial_idx, seg_idx])
             if not np.isnan(start) and not np.isnan(end):
-                plt.axvspan(start, end, color='green', alpha=0.15)
+                axs[1].axvspan(start, end, color='green', alpha=0.15)
         except (ValueError, TypeError):
             continue
 
-# Highlight punish intervals on treadmill speed plot
+# Highlight punish intervals
 for trial_idx in range(punish_texture_change_time.shape[0]):
     for seg_idx in range(punish_texture_change_time.shape[1]):
         try:
             start = float(punish_texture_change_time[trial_idx, seg_idx])
             end = float(punish_revert_time[trial_idx, seg_idx])
             if not np.isnan(start) and not np.isnan(end):
-                plt.axvspan(start, end, color='red', alpha=0.15)
+                axs[1].axvspan(start, end, color='red', alpha=0.15)
         except (ValueError, TypeError):
             continue
 
-plt.xlabel('Elapsed Time (s)')
-plt.ylabel('Speed')
-plt.title('Interpolated Treadmill Speed Over Time with Reward and Puff Events')
-plt.legend()
+axs[1].set_xlabel('Elapsed Time (s)')
+axs[1].set_ylabel('Speed')
+axs[1].set_title('Interpolated Treadmill Speed Over Time with Reward and Puff Events')
+axs[1].legend(loc='upper right')
+
 plt.tight_layout()
 plt.show()
 
-hits = len(reward_times)
-print(f"Number of hits: {hits}")
-reward_zones = len(reward_texture_change_time)
-#print(f"Number of reward zones: {reward_zones}")
-misses = reward_zones - hits
-print(f"Number of misses: {misses}")
+# hits = len(reward_times)
+# print(f"Number of hits: {hits}")
+# reward_zones = len(reward_texture_change_time)
+# #print(f"Number of reward zones: {reward_zones}")
+# misses = reward_zones - hits
+# print(f"Number of misses: {misses}")
