@@ -518,6 +518,10 @@ class LickMetricsAppender:
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with quarter ratios in {os.path.basename(self.csv_path)}.")
 
+class DPrimeAppender:
+    def __init__(self, csv_path):
+        self.csv_path = csv_path
+
     def append_hits_to_misses_ratios(self, row_index, hits_to_misses_ratios):
         df = pd.read_csv(self.csv_path)
         for i in range(4):
@@ -550,6 +554,30 @@ class SpeedMetricsAppender:
 
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with speed quarter ratios in {os.path.basename(self.csv_path)}.")
+
+class SessionLengthAppender:
+    def __init__(self, csv_path):
+        self.csv_path = csv_path
+
+    def append_session_length(self, row_index, session_length_minutes):
+        df = pd.read_csv(self.csv_path)
+        if 'session_length' not in df.columns:
+            df['session_length'] = np.nan
+        df.at[row_index, 'session_length'] = round(session_length_minutes, 2)
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with session length ({session_length_minutes:.2f} min) in {os.path.basename(self.csv_path)}.")
+
+class TrialNumberAppender:
+    def __init__(self, csv_path):
+        self.csv_path = csv_path
+
+    def append_trial_number(self, row_index, n_trials):
+        df = pd.read_csv(self.csv_path)
+        if 'session_trials' not in df.columns:
+            df['session_trials'] = np.nan
+        df.at[row_index, 'session_trials'] = int(n_trials)
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with session_trials = {n_trials} in {os.path.basename(self.csv_path)}.")
 
 class LickPlotter:
     @staticmethod
@@ -711,6 +739,8 @@ if __name__ == "__main__":
 
     # Run lick analysis
     analysis = LickAnalysis(trial_log_path, capacitive_path)
+    max_time = analysis.capacitive_df['elapsed_time'].max()
+    session_length_minutes = max_time / 60
   
     # Speed analysis
     speed_analysis = SpeedAnalysis(trial_log_path, capacitive_path, treadmill_path)
@@ -880,10 +910,38 @@ if __name__ == "__main__":
     # Prompt for row index
     row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
 
-    # Append quarter ratios
+    # Calculate the number of trials as the total number of objects in the texture_history column
+    def count_total_trials(trial_log_df):
+        def safe_count(val):
+            try:
+                if pd.isna(val) or val == '':
+                    return 0
+                if isinstance(val, list):
+                    return len(val)
+                if isinstance(val, str):
+                    # Try to parse as list
+                    import ast
+                    parsed = ast.literal_eval(val)
+                    if isinstance(parsed, list):
+                        return len(parsed)
+                    return 1
+                return 1
+            except Exception:
+                return 1
+        return trial_log_df['texture_history'].apply(safe_count).sum()
+
+    # Usage example:
+    trial_log_df = pd.read_csv(trial_log_path, engine='python')
+    n_trials = count_total_trials(trial_log_df)
+
+    # Append metrics to CSV
     appender = LickMetricsAppender(csv_path)
     appender.append_quarter_ratios(row_index, quarter_ratios)
-    # Append hits to misses ratios
-    appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
+    session_appender = SessionLengthAppender(csv_path)
+    session_appender.append_session_length(row_index, session_length_minutes)
+    dprime_appender = DPrimeAppender(csv_path)
+    dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
+    trial_appender = TrialNumberAppender(csv_path)
+    trial_appender.append_trial_number(row_index, n_trials)
