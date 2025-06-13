@@ -47,6 +47,12 @@ def main():
             if mmc.getRemainingImageCount() > 0:
                 image = mmc.popNextImage()  # Retrieve the next image
                 frame = np.reshape(image, (frame_height, frame_width))  # Reshape to 2D array
+
+                # --- Live view window (no quit feature) ---
+                cv2.imshow("Live View", frame.astype(np.uint8))
+                cv2.waitKey(1)
+                # ------------------------------------------
+
                 video_writer.write(frame.astype(np.uint8))  # Write frame to video
                 num_frames += 1
                 # Write time and frame number to text file
@@ -58,6 +64,7 @@ def main():
         mmc.stopSequenceAcquisition()
         video_writer.release()  # Release the video writer
         log_file.close()
+        cv2.destroyAllWindows()  # Close the live view window
         print(f"Recording stopped on {camera_device}. Video saved at {out_filename}.")
         print(f"Frame log saved at {log_path}")
 
