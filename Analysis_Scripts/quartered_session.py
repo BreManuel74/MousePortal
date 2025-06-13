@@ -642,32 +642,34 @@ class LickPlotter:
 class SpeedPlotter:
     @staticmethod
     def plot_speed_metrics(df_speed_quarters):
+        # Fill NaNs with 0 for plotting
+        df_plot = df_speed_quarters.fillna(0)
+
         fig, ax = plt.subplots(figsize=(12, 7))
-        quarters = df_speed_quarters['Quarter']
+        quarters = df_plot['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
 
-        ax.bar(x - 2*width, df_speed_quarters['average_speed_before_reward'], width, label='Speed Before Reward')
-        ax.bar(x - width, df_speed_quarters['average_speed_before_reward_zone'], width, label='Speed Before Reward Zone')
-        ax.bar(x, df_speed_quarters['average_speed_after_reward'], width, label='Speed After Reward')
-        ax.bar(x + width, df_speed_quarters['no_reward_speed_before'], width, label='Speed 2s Before No-Reward Zone')
-        ax.bar(x + 2*width, df_speed_quarters['no_reward_speed_after'], width, label='Speed 2s After No-Reward Zone')
+        ax.bar(x - 2*width, df_plot['average_speed_before_reward'], width, label='Speed Before Reward')
+        ax.bar(x - width, df_plot['average_speed_before_reward_zone'], width, label='Speed Before Reward Zone')
+        ax.bar(x, df_plot['average_speed_after_reward'], width, label='Speed After Reward')
+        ax.bar(x + width, df_plot['no_reward_speed_before'], width, label='Speed 2s Before No-Reward Zone')
+        ax.bar(x + 2*width, df_plot['no_reward_speed_after'], width, label='Speed 2s After No-Reward Zone')
 
-        for idx, row in df_speed_quarters.iterrows():
+        for idx, row in df_plot.iterrows():
             xpos = x[idx]
             ymax = max(
                 row['average_speed_before_reward'],
                 row['average_speed_before_reward_zone'],
                 row['average_speed_after_reward'],
-                0 if np.isnan(row['no_reward_speed_before']) else row['no_reward_speed_before'],
-                0 if np.isnan(row['no_reward_speed_after']) else row['no_reward_speed_after']
+                row['no_reward_speed_before'],
+                row['no_reward_speed_after']
             )
             # Annotate with ratio
-            ratio = row.get('ratio_speed_before_reward_to_before_zone', np.nan)
+            ratio = row.get('ratio_speed_before_reward_to_before_zone', 0)
             ax.text(xpos, ymax + 0.5, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
-            # Optionally, annotate with number of no-reward zones if you have that column
             if 'n_no_reward_zones' in row:
-                n_no_reward = row['n_no_reward_zones']
+                n_no_reward = row['n_no_reward_zones'] if not pd.isna(row['n_no_reward_zones']) else 0
                 if n_no_reward > 0:
                     ax.text(xpos, ymax + 1.5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
 
@@ -683,7 +685,7 @@ class SpeedPlotter:
     def plot_speed_metrics_table(df_speed_quarters, table_columns):
         table_data = df_speed_quarters[table_columns].copy()
         table_data = table_data.round(2)
-        table_data = table_data.fillna('')
+        table_data = table_data.fillna(0)  # Fill NaNs with 0
 
         fig2, ax2 = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
         ax2.axis('off')
@@ -702,9 +704,9 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752trial_log.csv'
-    treadmill_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752treadmill.csv'
-    capacitive_path = r'Kaufman_Project/Algernon/Session52/beh/1749662752capacitive.csv'
+    trial_log_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021trial_log.csv'
+    treadmill_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021treadmill.csv'
+    capacitive_path = r'Kaufman_Project/Algernon/Session2/beh/1749576021capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
     # Run lick analysis
