@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import pymmcore_plus
 import time
-from Phases.user_1 import Stopwatch
+from Phases.user import Stopwatch
 
 def main():
     global_stopwatch = Stopwatch()

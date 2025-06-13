@@ -3,15 +3,16 @@
     "corridor_width": 8.0,
     "wall_height": 10.0,
     "num_segments": 20,
-    "camera_height": 2.0,
+    "camera_height": 3.0,
     "treadmill_speed_scaling": 3,
     "speed_scaling": 0.05,
-    "left_wall_texture": "assets/wall_mean100.jpg",
-    "right_wall_texture": "assets/wall_mean100.jpg",
-    "floor_texture": "assets/wall_mean100.jpg",
-    "ceiling_texture": "assets/white.png",
+    "left_wall_texture": "assets/black.png",
+    "right_wall_texture": "assets/black.png",
+    "floor_texture": "assets/black.png",
+    "ceiling_texture": "assets/black.png",
     "recorder_script_path": "thorcam.py",
     "fog_density": 0.06,
+    "fog_color": [0, 0, 0],
     "arduino_port": "COM7",
     "arduino_baudrate": 115200,
     "teensy_baudrate": 57600,
@@ -19,21 +20,22 @@
     "neutral_stim_1": "assets/grating_mean100.jpg",
     "stop_texture": "assets/reward_mean100.jpg",
     "test_mode": false,
+    "probe": false,
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 0.25,
+    "reward_time": 0.001,
     "puff_time": 0.1,
     "puff_duration": 700,
     "base_hallway_distribution": {
+        "loc": 15,
+        "scale": 5
+    },
+    "base_hallway_min_value": 8,
+    "stay_zone_distribution": {
         "loc": 25,
         "scale": 5
     },
-    "base_hallway_min_value": 1,
-    "stay_zone_distribution": {
-        "loc": 10,
-        "scale": 2
-    },
-    "stay_zone_min_value": 1,
+    "stay_zone_min_value": 10,
     "go_zone_distribution": {
         "loc": 30,
         "scale": 2

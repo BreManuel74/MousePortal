@@ -918,7 +918,7 @@ class RewardOrPuff(FSM):
         self.trial_df.to_csv(self.trial_csv_path, index=False)
 
         signal = int(f"2{self.reward_duration}")
-        print(signal)
+        #print(signal)
         self.base.serial_output.send_signal(signal)
         self.base.doMethodLaterStopwatch(1.0, self._transitionToNeutral, 'return-to-neutral')
 
@@ -1037,7 +1037,7 @@ class RewardCalculator:
             if slope == 0:
                 raise ValueError("Slope cannot be zero for a valid linear equation.")
             x = (y - intercept) / slope
-            print(x)
+            #print(x)
             return x
         except Exception as e:
             print(f"Error calculating x for y={y}, slope={slope}, intercept={intercept}: {e}")
