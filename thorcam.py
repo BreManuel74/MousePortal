@@ -18,6 +18,10 @@ def main():
     mmc = pymmcore_plus.CMMCorePlus()
     mmc.loadSystemConfiguration(r'C:\Program Files\Micro-Manager-2.0\ThorCam.cfg')
     mmc.setCameraDevice(camera_device)
+    # Set camera exposure lower to make the image dimmer
+    mmc.setProperty(camera_device, "Exposure", 6)  # Set to your desired value in ms (e.g., 1 for minimum)
+
+    print(mmc.getDevicePropertyNames(camera_device))
 
     # Video output settings
     os.makedirs(video_dir, exist_ok=True)
