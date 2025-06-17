@@ -403,57 +403,18 @@ class SpeedAnalysis:
             "average_speed": avg_speed
         }
 
-    def compute_speed_metrics_for_window(self, start_time, end_time, reward_times=None, matched_zone_times=None, puff_times=None, matched_puff_zone_times=None):
-        # Restrict to the current quarter
+    def compute_reward_speed_metrics_for_window(self, start_time, end_time, reward_times=None, matched_zone_times=None):
         speed_times = self.treadmill_interp.index
         speeds = self.treadmill_interp.values
 
-        # Restrict treadmill data to the current quarter
         quarter_mask = (speed_times >= start_time) & (speed_times < end_time)
         speed_times_window = speed_times[quarter_mask]
         treadmill_interp_window = self.treadmill_interp[quarter_mask]
 
-        # Preparing reward and punish zone times
         reward_texture_change_time = LickAnalysis(self.trial_log_path, self.capacitive_path).prepare_arrays()
-        punish_texture_change_time = self.prepare_arrays()
-
         reward_zone_times_flat = reward_texture_change_time.flatten()
-        punish_zone_times_flat = punish_texture_change_time.flatten()
-
         reward_zone_times_flat = pd.to_numeric(reward_zone_times_flat, errors='coerce')
-        punish_zone_times_flat = pd.to_numeric(punish_zone_times_flat, errors='coerce')
-
         reward_zone_times_flat = reward_zone_times_flat[~np.isnan(reward_zone_times_flat)]
-        punish_zone_times_flat = punish_zone_times_flat[~np.isnan(punish_zone_times_flat)]
-
-        if puff_times is not None and matched_puff_zone_times is not None:
-            puff_times_valid = puff_times
-            matched_puff_zone_times_valid = matched_puff_zone_times
-            puff_delays = puff_times_valid - matched_puff_zone_times_valid
-        else:
-            trial_log_window = self.trial_log_df[
-                (self.trial_log_df['puff_event'] >= start_time) & (self.trial_log_df['puff_event'] < end_time)
-            ]
-            if trial_log_window.empty:
-                return {
-                    "average_speed_before_reward": np.nan,
-                    "average_speed_before_reward_zone": np.nan,
-                    "average_speed_after_reward": np.nan,
-                    "no_reward_speed_before": np.nan,
-                    "no_reward_speed_after": np.nan,
-                    "ratio_speed_before_reward_to_before_zone": np.nan,
-                    "average_speed_before_puff": np.nan,
-                    "average_speed_before_puff_zone": np.nan,
-                    "average_speed_after_puff": np.nan,
-                    "no_puff_speed_before": np.nan,
-                    "no_puff_speed_after": np.nan
-                }
-            puff_times = pd.to_numeric(self.trial_log_df['puff_event'], errors='coerce').dropna().values
-            matched_puff_zone_times = self.get_puff_zone_times_for_puffs(puff_times, punish_zone_times_flat)
-            valid = ~np.isnan(matched_puff_zone_times)
-            puff_times_valid = puff_times[valid]
-            matched_puff_zone_times_valid = matched_puff_zone_times[valid]
-            puff_delays = puff_times_valid - matched_puff_zone_times_valid
 
         if reward_times is not None and matched_zone_times is not None:
             reward_times_valid = reward_times
@@ -471,11 +432,7 @@ class SpeedAnalysis:
                     "no_reward_speed_before": np.nan,
                     "no_reward_speed_after": np.nan,
                     "ratio_speed_before_reward_to_before_zone": np.nan,
-                    "average_speed_before_puff": np.nan,
-                    "average_speed_before_puff_zone": np.nan,
-                    "average_speed_after_puff": np.nan,
-                    "no_puff_speed_before": np.nan,
-                    "no_puff_speed_after": np.nan
+                    "n_no_reward_zones": np.nan
                 }
             reward_times = pd.to_numeric(trial_log_window['reward_event'], errors='coerce').dropna().values
             matched_zone_times = LickAnalysis.get_reward_zone_times_for_rewards(reward_times, reward_zone_times_flat)
@@ -484,7 +441,6 @@ class SpeedAnalysis:
             matched_zone_times_valid = matched_zone_times[valid]
             reward_delays = reward_times_valid - matched_zone_times_valid
 
-        # Average speed before reward (between zone and reward) -- only within quarter
         speeds_before_reward = [
             treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_reward)].mean()
             for t_change, t_reward in zip(matched_zone_times_valid, reward_times_valid)
@@ -492,15 +448,6 @@ class SpeedAnalysis:
         ]
         avg_speed_before_reward = np.nanmean(speeds_before_reward) if speeds_before_reward else np.nan
 
-        # Average speed before puff (between zone and puff) -- only within quarter
-        speeds_before_puff = [
-            treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_puff)].mean()
-            for t_change, t_puff in zip(matched_puff_zone_times_valid, puff_times_valid)
-            if np.any((speed_times_window >= t_change) & (speed_times_window < t_puff))
-        ]
-        avg_speed_before_puff = np.nanmean(speeds_before_puff) if speeds_before_puff else np.nan
-
-        # Average speed before reward zone (same logic as licks) -- only within quarter
         speeds_before_reward_zone = [
             treadmill_interp_window[(speed_times_window >= (t_change - delay)) & (speed_times_window < t_change)].mean()
             for t_change, delay in zip(matched_zone_times_valid, reward_delays)
@@ -508,15 +455,6 @@ class SpeedAnalysis:
         ]
         avg_speed_before_reward_zone = np.nanmean(speeds_before_reward_zone) if speeds_before_reward_zone else np.nan
 
-        # Average speed before puff zone (same logic as licks) -- only within quarter
-        speeds_before_puff_zone = [
-            treadmill_interp_window[(speed_times_window >= (t_change - delay)) & (speed_times_window < t_change)].mean()
-            for t_change, delay in zip(matched_puff_zone_times_valid, puff_delays)
-            if np.any((speed_times_window >= (t_change - delay)) & (speed_times_window < t_change))
-        ]
-        avg_speed_before_puff_zone = np.nanmean(speeds_before_puff_zone) if speeds_before_puff_zone else np.nan
-
-        # Average speed after reward (from reward to reward+delay) -- only within quarter
         speeds_after_reward = [
             treadmill_interp_window[(speed_times_window >= t_reward) & (speed_times_window < (t_reward + delay))].mean()
             for t_reward, delay in zip(reward_times_valid, reward_delays)
@@ -524,17 +462,7 @@ class SpeedAnalysis:
         ]
         avg_speed_after_reward = np.nanmean(speeds_after_reward) if speeds_after_reward else np.nan
 
-        # Average speed after puff (from puff to puff+delay) -- only within quarter
-        speeds_after_puff = [
-            treadmill_interp_window[(speed_times_window >= t_puff) & (speed_times_window < (t_puff + delay))].mean()
-            for t_puff, delay in zip(puff_times_valid, puff_delays)
-            if np.any((speed_times_window >= t_puff) & (speed_times_window < (t_puff + delay)))
-        ]
-        avg_speed_after_puff = np.nanmean(speeds_after_puff) if speeds_after_puff else np.nan
-
-        # --- New logic for zones with NO event ---
         reward_zones_in_window = reward_zone_times_flat[(reward_zone_times_flat >= start_time) & (reward_zone_times_flat < end_time)]
-        puff_zones_in_window = punish_zone_times_flat[(punish_zone_times_flat >= start_time) & (punish_zone_times_flat < end_time)]
 
         no_reward_zones = []
         for t_zone in reward_zones_in_window:
@@ -547,20 +475,6 @@ class SpeedAnalysis:
             if not is_zone_used:
                 no_reward_zones.append(t_zone)
 
-        no_puff_zones = []
-        for t_zone in puff_zones_in_window:
-            is_zone_used = False
-            for t_puff in puff_times_valid:
-                prior_zones = punish_zone_times_flat[punish_zone_times_flat < t_puff]
-                if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
-                    is_zone_used = True
-                    break
-            #print(f"  Checking zone {t_zone}: is_zone_used_for_puff = {is_zone_used}")
-            if not is_zone_used:
-                no_puff_zones.append(t_zone)
-        #print(f" DEBUG: no_puff_zones: {no_puff_zones}")
-
-        # Calculate average speed 2s before and after for these zones -- only within quarter
         no_reward_speed_before = [
             treadmill_interp_window[(speed_times_window >= (t_zone - 2)) & (speed_times_window < t_zone)].mean()
             for t_zone in no_reward_zones
@@ -572,18 +486,6 @@ class SpeedAnalysis:
         avg_no_reward_speed_before = np.nanmean(no_reward_speed_before) if no_reward_speed_before else np.nan
         avg_no_reward_speed_after = np.nanmean(no_reward_speed_after) if no_reward_speed_after else np.nan
 
-        no_puff_speed_before = [
-            treadmill_interp_window[(speed_times_window >= (t_zone - 2)) & (speed_times_window < t_zone)].mean()
-            for t_zone in no_puff_zones
-        ]
-        no_puff_speed_after = [
-            treadmill_interp_window[(speed_times_window >= t_zone) & (speed_times_window < t_zone + 2)].mean()
-            for t_zone in no_puff_zones
-        ]
-        avg_no_puff_speed_before = np.nanmean(no_puff_speed_before) if no_puff_speed_before else np.nan
-        avg_no_puff_speed_after = np.nanmean(no_puff_speed_after) if no_puff_speed_after else np.nan
-
-        # Calculate ratio, mirroring lick analysis
         ratio_speed_before_reward_to_before_zone = (
             avg_speed_before_reward / avg_speed_before_reward_zone
             if avg_speed_before_reward_zone and avg_speed_before_reward_zone != 0 else np.nan
@@ -596,15 +498,102 @@ class SpeedAnalysis:
             "no_reward_speed_before": avg_no_reward_speed_before,
             "no_reward_speed_after": avg_no_reward_speed_after,
             "ratio_speed_before_reward_to_before_zone": ratio_speed_before_reward_to_before_zone,
+            "n_no_reward_zones": len(no_reward_zones)
+        }
+
+    def compute_puff_speed_metrics_for_window(self, start_time, end_time, puff_times=None, matched_puff_zone_times=None):
+        speed_times = self.treadmill_interp.index
+        speeds = self.treadmill_interp.values
+
+        quarter_mask = (speed_times >= start_time) & (speed_times < end_time)
+        speed_times_window = speed_times[quarter_mask]
+        treadmill_interp_window = self.treadmill_interp[quarter_mask]
+
+        punish_texture_change_time = self.prepare_arrays()
+        punish_zone_times_flat = punish_texture_change_time.flatten()
+        punish_zone_times_flat = pd.to_numeric(punish_zone_times_flat, errors='coerce')
+        punish_zone_times_flat = punish_zone_times_flat[~np.isnan(punish_zone_times_flat)]
+
+        if puff_times is not None and matched_puff_zone_times is not None:
+            puff_times_valid = puff_times
+            matched_puff_zone_times_valid = matched_puff_zone_times
+            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+        else:
+            trial_log_window = self.trial_log_df[
+                (self.trial_log_df['puff_event'] >= start_time) & (self.trial_log_df['puff_event'] < end_time)
+            ]
+            if trial_log_window.empty:
+                return {
+                    "average_speed_before_puff": np.nan,
+                    "average_speed_before_puff_zone": np.nan,
+                    "average_speed_after_puff": np.nan,
+                    "no_puff_speed_before": np.nan,
+                    "no_puff_speed_after": np.nan,
+                    "n_no_puff_zones": np.nan,
+                    "n_no_reward_zones": np.nan
+                }
+            puff_times = pd.to_numeric(self.trial_log_df['puff_event'], errors='coerce').dropna().values
+            matched_puff_zone_times = self.get_puff_zone_times_for_puffs(puff_times, punish_zone_times_flat)
+            valid = ~np.isnan(matched_puff_zone_times)
+            puff_times_valid = puff_times[valid]
+            matched_puff_zone_times_valid = matched_puff_zone_times[valid]
+            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+
+        speeds_before_puff = [
+            treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_puff)].mean()
+            for t_change, t_puff in zip(matched_puff_zone_times_valid, puff_times_valid)
+            if np.any((speed_times_window >= t_change) & (speed_times_window < t_puff))
+        ]
+        avg_speed_before_puff = np.nanmean(speeds_before_puff) if speeds_before_puff else np.nan
+        print(f"DEBUG: speeds_before_puff for {start_time}-{end_time}: {avg_speed_before_puff}")
+
+        speeds_before_puff_zone = [
+            treadmill_interp_window[(speed_times_window >= (t_change - delay)) & (speed_times_window < t_change)].mean()
+            for t_change, delay in zip(matched_puff_zone_times_valid, puff_delays)
+            if np.any((speed_times_window >= (t_change - delay)) & (speed_times_window < t_change))
+        ]
+        avg_speed_before_puff_zone = np.nanmean(speeds_before_puff_zone) if speeds_before_puff_zone else np.nan
+
+        speeds_after_puff = [
+            treadmill_interp_window[(speed_times_window >= t_puff) & (speed_times_window < (t_puff + delay))].mean()
+            for t_puff, delay in zip(puff_times_valid, puff_delays)
+            if np.any((speed_times_window >= t_puff) & (speed_times_window < (t_puff + delay)))
+        ]
+        avg_speed_after_puff = np.nanmean(speeds_after_puff) if speeds_after_puff else np.nan
+
+        puff_zones_in_window = punish_zone_times_flat[(punish_zone_times_flat >= start_time) & (punish_zone_times_flat < end_time)]
+
+        no_puff_zones = []
+        for t_zone in puff_zones_in_window:
+            is_zone_used = False
+            for t_puff in puff_times_valid:
+                prior_zones = punish_zone_times_flat[punish_zone_times_flat < t_puff]
+                if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
+                    is_zone_used = True
+                    break
+            if not is_zone_used:
+                no_puff_zones.append(t_zone)
+
+        no_puff_speed_before = [
+            treadmill_interp_window[(speed_times_window >= (t_zone - 2)) & (speed_times_window < t_zone)].mean()
+            for t_zone in no_puff_zones
+        ]
+        no_puff_speed_after = [
+            treadmill_interp_window[(speed_times_window >= t_zone) & (speed_times_window < t_zone + 2)].mean()
+            for t_zone in no_puff_zones
+        ]
+        avg_no_puff_speed_before = np.nanmean(no_puff_speed_before) if no_puff_speed_before else np.nan
+        avg_no_puff_speed_after = np.nanmean(no_puff_speed_after) if no_puff_speed_after else np.nan
+
+        return {
             "average_speed_before_puff": avg_speed_before_puff,
             "average_speed_before_puff_zone": avg_speed_before_puff_zone,
             "average_speed_after_puff": avg_speed_after_puff,
             "no_puff_speed_before": avg_no_puff_speed_before,
             "no_puff_speed_after": avg_no_puff_speed_after,
-            "n_no_reward_zones": len(no_reward_zones),
-            "n_no_puff_zones": len(no_puff_zones)
+            "n_no_puff_zones": len(no_puff_zones),
+            "n_no_reward_zones": np.nan  # Not relevant here, but for merge compatibility
         }
-
     @staticmethod
     def get_puff_zone_times_for_puffs(puff_times, punish_zone_times):
         """For each puff time, find the most recent punish zone time before it."""
@@ -617,7 +606,7 @@ class SpeedAnalysis:
                 matched_puff_zone_times.append(np.nan)
             else:
                 matched_puff_zone_times.append(prior_zones[-1])
-        print(f"DEBUG: matched_puff_zone_times for puffs {puff_times}: {matched_puff_zone_times}")
+        #print(f"DEBUG: matched_puff_zone_times for puffs {puff_times}: {matched_puff_zone_times}")
         return np.array(matched_puff_zone_times)
 
 class LickMetricsAppender:
@@ -860,6 +849,37 @@ class SpeedPlotter:
         ax.set_title("Speed Metrics Table by Quarter")
         return ax
 
+    @staticmethod
+    def plot_puff_speed_metrics_table(df_speed_quarters, ax=None):
+        """Plot a table of all puff-based speed metrics by quarter."""
+        puff_columns = [
+            'Quarter',
+            'average_speed_before_puff_puff',
+            'average_speed_before_puff_zone_puff',
+            'average_speed_after_puff_puff',
+            'no_puff_speed_before_puff',
+            'no_puff_speed_after_puff',
+            'n_no_puff_zones_puff',
+        ]
+        table_data = df_speed_quarters[puff_columns].copy()
+        table_data = table_data.round(2)
+        table_data = table_data.fillna(0)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
+        ax.axis('off')
+        mpl_table = ax.table(
+            cellText=table_data.values,
+            colLabels=table_data.columns,
+            loc='center',
+            cellLoc='center'
+        )
+        mpl_table.auto_set_font_size(False)
+        mpl_table.set_fontsize(10)
+        mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
+        ax.set_title("Puff-Based Speed Metrics Table by Quarter")
+        return ax
+
 if __name__ == "__main__":
     # File paths
     trial_log_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827trial_log.csv'
@@ -889,7 +909,7 @@ if __name__ == "__main__":
     for i, q in enumerate(quarters):
         start = q['start']
         end = q['end']
-        speed_metrics_quarter = speed_analysis.compute_speed_metrics_for_window(
+        speed_metrics_quarter = speed_analysis.compute_reward_speed_metrics_for_window(
             start, end,
             reward_times=q['reward_times'],
             matched_zone_times=q['matched_zone_times']
@@ -899,6 +919,7 @@ if __name__ == "__main__":
 
     # Create DataFrame for speed metrics
     df_speed_quarters = pd.DataFrame(speed_quarter_data)
+    #print("DEBUG: df_speed_quarters before adding columns:", df_speed_quarters)
 
     # Ensure all required speed columns are present
     required_speed_columns = [
@@ -919,20 +940,21 @@ if __name__ == "__main__":
     for i, q in enumerate(puff_quarters):
         start = q['start']
         end = q['end']
-        metrics_quarter = speed_analysis.compute_speed_metrics_for_window(
+        metrics_quarter = speed_analysis.compute_puff_speed_metrics_for_window(
             start, end,
             puff_times=q['puff_times'],
             matched_puff_zone_times=q['matched_puff_zone_times']
         )
         metrics_quarter['Quarter'] = f'Q{i+1}'
+        #print("DEBUG: metrics_quarter dict before append:", metrics_quarter)
         puff_quarter_data.append(metrics_quarter)
-        #print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
-        #print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
-        #print(f"  Avg speed before puff zone: {metrics_quarter['average_speed_before_puff_zone']}")
-        #print(f"  Avg speed after puff: {metrics_quarter['average_speed_after_puff']}")
-        #print(f"  No-puff zones present in this quarter (speed):")
-        #print(f"    Avg speed 2s before zone: {metrics_quarter['no_puff_speed_before']}")
-        #print(f"    Avg speed 2s after zone: {metrics_quarter['no_puff_speed_after']}")
+        print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
+        print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
+        print(f"  Avg speed before puff zone: {metrics_quarter['average_speed_before_puff_zone']}")
+        print(f"  Avg speed after puff: {metrics_quarter['average_speed_after_puff']}")
+        print(f"  No-puff zones present in this quarter (speed):")
+        print(f"    Avg speed 2s before zone: {metrics_quarter['no_puff_speed_before']}")
+        print(f"    Avg speed 2s after zone: {metrics_quarter['no_puff_speed_after']}")
         print(metrics_quarter.get('n_no_puff_zones', 0), "no-puff zones in this quarter")
     # ---------------- END SPEED ANALYSIS SECTION ----------------
 
@@ -973,7 +995,7 @@ if __name__ == "__main__":
         #     print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
         # else:
         #     print(f"  No-reward zones: None in this quarter")
-        print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
+        #print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
 
     # Create DataFrame
     df_quarters = pd.DataFrame(quarter_data)
@@ -990,7 +1012,7 @@ if __name__ == "__main__":
         if col_misses not in df_quarters.columns:
             df_quarters[col_misses] = [row.get(col_misses, 0) for row in quarter_data]
 
-    fig_tables, axs_tables = plt.subplots(2, 1, figsize=(14, 6))
+    fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
 
     # Plotting
     LickPlotter.plot_lick_metrics_table(df_quarters, [
@@ -1023,14 +1045,24 @@ if __name__ == "__main__":
 
     # Convert puff quarter data to DataFrame
     df_puff_quarters = pd.DataFrame(puff_quarter_data)
+    # Before merging, rename puff columns
+    puff_cols = [
+        'average_speed_before_puff',
+        'average_speed_before_puff_zone',
+        'average_speed_after_puff',
+        'no_puff_speed_before',
+        'no_puff_speed_after',
+        'n_no_reward_zones',
+        'n_no_puff_zones'
+    ]
+    df_puff_quarters = df_puff_quarters.rename(columns={col: f"{col}_puff" for col in puff_cols})
 
-    # Merge puff metrics into df_speed_quarters on 'Quarter'
+    # Now merge as before
     df_speed_quarters = pd.merge(
         df_speed_quarters,
         df_puff_quarters,
         on='Quarter',
-        how='left',
-        suffixes=('', '_puff')
+        how='left'
     )
 
     # Ensure all required speed columns are present
@@ -1041,13 +1073,13 @@ if __name__ == "__main__":
         'ratio_speed_before_reward_to_before_zone',
         'no_reward_speed_before',
         'no_reward_speed_after',
-        'average_speed_before_puff',
-        'average_speed_before_puff_zone',
-        'average_speed_after_puff',
-        'no_puff_speed_before',
-        'no_puff_speed_after',
-        'n_no_reward_zones',
-        'n_no_puff_zones'
+        'average_speed_before_puff_puff',
+        'average_speed_before_puff_zone_puff',
+        'average_speed_after_puff_puff',
+        'no_puff_speed_before_puff',
+        'no_puff_speed_after_puff',
+        'n_no_reward_zones_puff',
+        'n_no_puff_zones_puff'
     ]
     for col in required_speed_columns:
         if col not in df_speed_quarters.columns:
@@ -1063,9 +1095,9 @@ if __name__ == "__main__":
         'no_reward_speed_before',
         'no_reward_speed_after',
         'n_no_reward_zones',
-        'n_no_puff_zones_puff',
-    ],
-    ax=axs_tables[1])
+    ], ax=axs_tables[1])
+
+    SpeedPlotter.plot_puff_speed_metrics_table(df_speed_quarters, ax=axs_tables[2])
 
     # Create a single figure with 3 subplots (vertical)
     fig, axs = plt.subplots(3, 1, figsize=(14, 18))
@@ -1104,6 +1136,18 @@ if __name__ == "__main__":
     # Usage example:
     trial_log_df = pd.read_csv(trial_log_path, engine='python')
     n_trials = count_total_trials(trial_log_df)
+
+    # Collect speed ratios for each quarter
+    speed_quarter_ratios = [
+        0 if pd.isna(row['ratio_speed_before_reward_to_before_zone']) else row['ratio_speed_before_reward_to_before_zone']
+        for _, row in df_speed_quarters.iterrows()
+    ]
+
+    # Collect ratio values for each quarter
+    quarter_ratios = [
+        0 if pd.isna(row['ratio_licks_before_reward_to_before_zone']) else row['ratio_licks_before_reward_to_before_zone']
+        for _, row in df_quarters.iterrows()
+    ]
 
     # Append metrics to CSV
     appender = LickMetricsAppender(csv_path)
