@@ -545,7 +545,7 @@ class SpeedAnalysis:
             if np.any((speed_times_window >= t_change) & (speed_times_window < t_puff))
         ]
         avg_speed_before_puff = np.nanmean(speeds_before_puff) if speeds_before_puff else np.nan
-        print(f"DEBUG: speeds_before_puff for {start_time}-{end_time}: {avg_speed_before_puff}")
+        #print(f"DEBUG: speeds_before_puff for {start_time}-{end_time}: {avg_speed_before_puff}")
 
         speeds_before_puff_zone = [
             treadmill_interp_window[(speed_times_window >= (t_change - delay)) & (speed_times_window < t_change)].mean()
@@ -585,6 +585,10 @@ class SpeedAnalysis:
         avg_no_puff_speed_before = np.nanmean(no_puff_speed_before) if no_puff_speed_before else np.nan
         avg_no_puff_speed_after = np.nanmean(no_puff_speed_after) if no_puff_speed_after else np.nan
 
+        ratio_speed_puffs = (avg_no_puff_speed_before / avg_no_puff_speed_after
+            if avg_no_puff_speed_after and avg_no_puff_speed_after != 0 else np.nan
+        )
+
         return {
             "average_speed_before_puff": avg_speed_before_puff,
             "average_speed_before_puff_zone": avg_speed_before_puff_zone,
@@ -592,7 +596,8 @@ class SpeedAnalysis:
             "no_puff_speed_before": avg_no_puff_speed_before,
             "no_puff_speed_after": avg_no_puff_speed_after,
             "n_no_puff_zones": len(no_puff_zones),
-            "n_no_reward_zones": np.nan  # Not relevant here, but for merge compatibility
+            "n_no_reward_zones": np.nan,  # Not relevant here, but for merge compatibility
+            "ratio_speed_puffs": ratio_speed_puffs
         }
     @staticmethod
     def get_puff_zone_times_for_puffs(puff_times, punish_zone_times):
@@ -617,18 +622,18 @@ class LickMetricsAppender:
         df = pd.read_csv(self.csv_path)
         # Ensure columns exist
         for i in range(4):
-            col = f'LickRatio_Q{i+1}'
+            col = f'LickRewardRatio_Q{i+1}'
             if col not in df.columns:
                 df[col] = np.nan
 
         # Write ratios, replacing nan with 0 and rounding to 2 decimals
         for i, ratio in enumerate(ratios):
-            col = f'LickRatio_Q{i+1}'
+            col = f'LickRewardRatio_Q{i+1}'
             value = 0 if pd.isna(ratio) else round(ratio, 2)
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with quarter ratios in {os.path.basename(self.csv_path)}.")
+        print(f"Updated row {row_index} with lick reward quarter ratios in {os.path.basename(self.csv_path)}.")
 
 class DPrimeAppender:
     def __init__(self, csv_path):
@@ -654,18 +659,35 @@ class SpeedMetricsAppender:
         df = pd.read_csv(self.csv_path)
         # Ensure columns exist
         for i in range(4):
-            col = f'SpeedRatio_Q{i+1}'
+            col = f'SpeedRewardRatio_Q{i+1}'
             if col not in df.columns:
                 df[col] = np.nan
 
         # Write ratios, replacing nan with 0 and rounding to 2 decimals
         for i, ratio in enumerate(speed_ratios):
-            col = f'SpeedRatio_Q{i+1}'
+            col = f'SpeedRewardRatio_Q{i+1}'
             value = 0 if pd.isna(ratio) else round(ratio, 2)
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with speed quarter ratios in {os.path.basename(self.csv_path)}.")
+        print(f"Updated row {row_index} with speed reward quarter ratios in {os.path.basename(self.csv_path)}.")
+
+    def append_puff_speed_ratios(self, row_index, puff_speed_ratios):
+        df = pd.read_csv(self.csv_path)
+        # Ensure columns exist
+        for i in range(4):
+            col = f'SpeedPuffRatio_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+
+        # Write ratios, replacing nan with 0 and rounding to 2 decimals
+        for i, ratio in enumerate(puff_speed_ratios):
+            col = f'SpeedPuffRatio_Q{i+1}'
+            value = 0 if pd.isna(ratio) else round(ratio, 2)
+            df.at[row_index, col] = value
+
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with speed puff quarter ratios in {os.path.basename(self.csv_path)}.")
 
 class SessionLengthAppender:
     def __init__(self, csv_path):
@@ -717,10 +739,7 @@ class LickPlotter:
             )
             ratio = row['ratio_licks_before_reward_to_before_zone']
             ax.text(xpos, ymax + 1, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
-            n_no_reward = row['n_no_reward_zones']
-            if n_no_reward > 0:
-                ax.text(xpos, ymax + 5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
-
+    
         ax.set_xticks(x)
         ax.set_xticklabels(quarters)
         ax.set_xlim(-0.5, len(x) - 0.5)
@@ -735,7 +754,7 @@ class LickPlotter:
     def plot_lick_metrics_table(df_quarters, table_columns, ax=None):
         table_data = df_quarters[table_columns].copy()
         table_data = table_data.round(2)
-        table_data = table_data.fillna('')
+        table_data = table_data.fillna(0)
 
         if ax is None:
             fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
@@ -813,16 +832,50 @@ class SpeedPlotter:
             )
             ratio = row.get('ratio_speed_before_reward_to_before_zone', 0)
             ax.text(xpos, ymax + 0.5, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
-            if 'n_no_reward_zones' in row:
-                n_no_reward = row['n_no_reward_zones'] if not pd.isna(row['n_no_reward_zones']) else 0
-                if n_no_reward > 0:
-                    ax.text(xpos, ymax + 1.5, f"No-reward zones: {int(n_no_reward)}", ha='center', va='bottom', fontsize=9, color='purple')
 
         ax.set_xticks(x)
         ax.set_xticklabels(quarters)
         ax.set_xlim(-0.5, len(x) - 0.5)
         ax.set_ylabel('Speed')
         ax.set_title('Speed Metrics by Session Quarter')
+        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        return ax
+    
+    @staticmethod
+    def plot_speed_puff_metrics(df_speed_quarters, ax=None):
+        df_plot = df_speed_quarters.fillna(0)
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(12, 7))
+        quarters = df_plot['Quarter']
+        x = np.arange(len(quarters))
+        width = 0.13
+
+        ax.bar(x - 2*width, df_plot['average_speed_before_puff_puff'], width, label='Speed Before Puff')
+        ax.bar(x - width, df_plot['average_speed_before_puff_zone_puff'], width, label='Speed Before Puff Zone')
+        ax.bar(x, df_plot['average_speed_after_puff_puff'], width, label='Speed After Puff')
+        ax.bar(x + width, df_plot['no_puff_speed_before_puff'], width, label='Speed 2s Before No-Puff Zone')
+        ax.bar(x + 2*width, df_plot['no_puff_speed_after_puff'], width, label='Speed 2s After No-Puff Zone')
+
+        for idx, row in df_plot.iterrows():
+            xpos = x[idx]
+            ymax = max(
+                row['average_speed_before_puff_puff'],
+                row['average_speed_before_puff_zone_puff'],
+                row['average_speed_after_puff_puff'],
+                row['no_puff_speed_before_puff'],
+                row['no_puff_speed_after_puff']
+            )
+
+            ratio = row.get('ratio_speed_puffs_puff', 0)
+            ax.text(xpos, ymax + 0.5, f"Ratio: {ratio:.2f}", ha='center', va='bottom', fontsize=9, color='black', fontweight='bold')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(quarters)
+        ax.set_xlim(-0.5, len(x) - 0.5)
+        ax.set_ylabel('Speed')
+        ax.set_title('Puff Speed Metrics by Session Quarter')
         ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -860,6 +913,7 @@ class SpeedPlotter:
             'no_puff_speed_before_puff',
             'no_puff_speed_after_puff',
             'n_no_puff_zones_puff',
+            'ratio_speed_puffs_puff'
         ]
         table_data = df_speed_quarters[puff_columns].copy()
         table_data = table_data.round(2)
@@ -887,7 +941,7 @@ if __name__ == "__main__":
     capacitive_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
-    # Run lick analysis
+    # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
     max_time = analysis.capacitive_df['elapsed_time'].max()
     session_length_minutes = max_time / 60
@@ -921,19 +975,6 @@ if __name__ == "__main__":
     df_speed_quarters = pd.DataFrame(speed_quarter_data)
     #print("DEBUG: df_speed_quarters before adding columns:", df_speed_quarters)
 
-    # Ensure all required speed columns are present
-    required_speed_columns = [
-        'average_speed_before_reward',
-        'average_speed_before_reward_zone',
-        'average_speed_after_reward',
-        'ratio_speed_before_reward_to_before_zone',
-        'no_reward_speed_before',
-        'no_reward_speed_after'
-    ]
-    for col in required_speed_columns:
-        if col not in df_speed_quarters.columns:
-            df_speed_quarters[col] = np.nan
-
     # --- Puff-based speed analysis per quarter ---
     puff_quarters = speed_analysis.get_puff_quarters()
     puff_quarter_data = []
@@ -948,100 +989,14 @@ if __name__ == "__main__":
         metrics_quarter['Quarter'] = f'Q{i+1}'
         #print("DEBUG: metrics_quarter dict before append:", metrics_quarter)
         puff_quarter_data.append(metrics_quarter)
-        print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
-        print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
-        print(f"  Avg speed before puff zone: {metrics_quarter['average_speed_before_puff_zone']}")
-        print(f"  Avg speed after puff: {metrics_quarter['average_speed_after_puff']}")
-        print(f"  No-puff zones present in this quarter (speed):")
-        print(f"    Avg speed 2s before zone: {metrics_quarter['no_puff_speed_before']}")
-        print(f"    Avg speed 2s after zone: {metrics_quarter['no_puff_speed_after']}")
-        print(metrics_quarter.get('n_no_puff_zones', 0), "no-puff zones in this quarter")
-    # ---------------- END SPEED ANALYSIS SECTION ----------------
-
-    # Collect lick metrics for each quarter
-    quarters = analysis.get_session_quarters()
-    quarter_data = []
-    reward_texture_change_time = analysis.prepare_arrays()
-    reward_zone_times_flat = reward_texture_change_time.flatten()
-    reward_zone_times_flat = pd.to_numeric(reward_zone_times_flat, errors='coerce')
-    reward_zone_times_flat = reward_zone_times_flat[~np.isnan(reward_zone_times_flat)]
-
-    for i, q in enumerate(quarters):
-        start = q['start']
-        end = q['end']
-        metrics_quarter = analysis.compute_metrics_for_window(
-            start, end,
-            reward_times=q['reward_times'],
-            matched_zone_times=q['matched_zone_times']
-        )
-        metrics_quarter['Quarter'] = f'Q{i+1}'
-        metrics_quarter[f'Q{i+1}_hits'] = len(q['reward_times'])
-        reward_zones_in_quarter = reward_zone_times_flat[(reward_zone_times_flat >= start) & (reward_zone_times_flat < end)]
-        metrics_quarter[f'Q{i+1}_reward_zones'] = len(reward_zones_in_quarter)
-        # Add Q#_misses: reward_zones - hits
-        metrics_quarter[f'Q{i+1}_misses'] = len(reward_zones_in_quarter) - len(q['reward_times'])
-        quarter_data.append(metrics_quarter)
-        # Print metrics for each quarter
-        # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
-        # print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
-        # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
-        # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
-        # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
-        #print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
-        # # Print if no-reward zone data exists
-        # if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
-        #     print(f"  No-reward zones present in this quarter:")
-        #     print(f"    Avg licks 2s before zone: {metrics_quarter['no_reward_licks_before']}")
-        #     print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
-        # else:
-        #     print(f"  No-reward zones: None in this quarter")
-        #print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
-
-    # Create DataFrame
-    df_quarters = pd.DataFrame(quarter_data)
-
-    # Optionally, add Q#_hits columns for clarity (not strictly necessary if already in DataFrame)
-    for i in range(4):
-        col_hits = f'Q{i+1}_hits'
-        col_reward_zones = f'Q{i+1}_reward_zones'
-        col_misses = f'Q{i+1}_misses'
-        if col_hits not in df_quarters.columns:
-            df_quarters[col_hits] = [row.get(col_hits, 0) for row in quarter_data]
-        if col_reward_zones not in df_quarters.columns:
-            df_quarters[col_reward_zones] = [row.get(col_reward_zones, 0) for row in quarter_data]
-        if col_misses not in df_quarters.columns:
-            df_quarters[col_misses] = [row.get(col_misses, 0) for row in quarter_data]
-
-    fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
-
-    # Plotting
-    LickPlotter.plot_lick_metrics_table(df_quarters, [
-        'Quarter',
-        'average_licks_before_reward',
-        'average_licks_before_reward_zone',
-        'average_licks_after_reward',
-        'ratio_licks_before_reward_to_before_zone',
-        'no_reward_licks_before',
-        'no_reward_licks_after',
-        'n_no_reward_zones',
-    ]
-    , ax=axs_tables[0])
-
-    # Calculate hits to misses ratios for each quarter with explicit indication
-    hits_to_misses_ratios = []
-    for i in range(4):
-        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
-        misses_val = df_quarters[f'Q{i+1}_misses'].iloc[i]
-        if pd.isna(hits_val) and pd.isna(misses_val):
-            hits_to_misses_ratios.append("no_data")
-        elif (hits_val == 0 or pd.isna(hits_val)) and (misses_val != 0 and not pd.isna(misses_val)):
-            hits_to_misses_ratios.append("no_hits")
-        elif (misses_val == 0 or pd.isna(misses_val)) and (hits_val != 0 and not pd.isna(hits_val)):
-            hits_to_misses_ratios.append("no_misses")
-        elif misses_val == 0 or pd.isna(misses_val):
-            hits_to_misses_ratios.append("no_misses")
-        else:
-            hits_to_misses_ratios.append(hits_val / misses_val)
+    #     print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
+    #     print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
+    #     print(f"  Avg speed before puff zone: {metrics_quarter['average_speed_before_puff_zone']}")
+    #     print(f"  Avg speed after puff: {metrics_quarter['average_speed_after_puff']}")
+    #     print(f"  No-puff zones present in this quarter (speed):")
+    #     print(f"    Avg speed 2s before zone: {metrics_quarter['no_puff_speed_before']}")
+    #     print(f"    Avg speed 2s after zone: {metrics_quarter['no_puff_speed_after']}")
+    #     print(metrics_quarter.get('n_no_puff_zones', 0), "no-puff zones in this quarter")
 
     # Convert puff quarter data to DataFrame
     df_puff_quarters = pd.DataFrame(puff_quarter_data)
@@ -1053,11 +1008,12 @@ if __name__ == "__main__":
         'no_puff_speed_before',
         'no_puff_speed_after',
         'n_no_reward_zones',
-        'n_no_puff_zones'
+        'n_no_puff_zones',
+        'ratio_speed_puffs'
     ]
     df_puff_quarters = df_puff_quarters.rename(columns={col: f"{col}_puff" for col in puff_cols})
 
-    # Now merge as before
+    # Now merge
     df_speed_quarters = pd.merge(
         df_speed_quarters,
         df_puff_quarters,
@@ -1079,11 +1035,102 @@ if __name__ == "__main__":
         'no_puff_speed_before_puff',
         'no_puff_speed_after_puff',
         'n_no_reward_zones_puff',
-        'n_no_puff_zones_puff'
+        'n_no_puff_zones_puff',
+        'ratio_speed_puffs_puff'
     ]
     for col in required_speed_columns:
         if col not in df_speed_quarters.columns:
             df_speed_quarters[col] = np.nan
+
+
+    # # ---------------- LICK ANALYSIS SECTION ----------------
+
+    # Collect lick metrics for each quarter
+    quarters = analysis.get_session_quarters()
+    quarter_data = []
+    reward_texture_change_time = analysis.prepare_arrays()
+    reward_zone_times_flat = reward_texture_change_time.flatten()
+    reward_zone_times_flat = pd.to_numeric(reward_zone_times_flat, errors='coerce')
+    reward_zone_times_flat = reward_zone_times_flat[~np.isnan(reward_zone_times_flat)]
+
+    for i, q in enumerate(quarters):
+        start = q['start']
+        end = q['end']
+        metrics_quarter = analysis.compute_metrics_for_window(
+            start, end,
+            reward_times=q['reward_times'],
+            matched_zone_times=q['matched_zone_times']
+        )
+        metrics_quarter['Quarter'] = f'Q{i+1}'
+        metrics_quarter[f'Q{i+1}_hits'] = len(q['reward_times'])
+        reward_zones_in_quarter = reward_zone_times_flat[(reward_zone_times_flat >= start) & (reward_zone_times_flat < end)]
+        metrics_quarter[f'Q{i+1}_reward_zones'] = len(reward_zones_in_quarter)
+        metrics_quarter[f'Q{i+1}_misses'] = len(reward_zones_in_quarter) - len(q['reward_times'])
+        quarter_data.append(metrics_quarter)
+        # Print metrics for each quarter
+        # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
+        # print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
+        # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
+        # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
+        # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
+        #print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
+        # # Print if no-reward zone data exists
+        # if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
+        #     print(f"  No-reward zones present in this quarter:")
+        #     print(f"    Avg licks 2s before zone: {metrics_quarter['no_reward_licks_before']}")
+        #     print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
+        # else:
+        #     print(f"  No-reward zones: None in this quarter")
+        #print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
+
+    # Create DataFrame
+    df_quarters = pd.DataFrame(quarter_data)
+
+
+
+                     ##########D PRIME ANALYSIS SECTION##########
+
+
+
+
+    # Optionally, add Q#_hits columns for clarity (not strictly necessary if already in DataFrame)
+    for i in range(4):
+        col_hits = f'Q{i+1}_hits'
+        col_reward_zones = f'Q{i+1}_reward_zones'
+        col_misses = f'Q{i+1}_misses'
+        if col_hits not in df_quarters.columns:
+            df_quarters[col_hits] = [row.get(col_hits, 0) for row in quarter_data]
+        if col_reward_zones not in df_quarters.columns:
+            df_quarters[col_reward_zones] = [row.get(col_reward_zones, 0) for row in quarter_data]
+        if col_misses not in df_quarters.columns:
+            df_quarters[col_misses] = [row.get(col_misses, 0) for row in quarter_data]
+
+    # Calculate hits to misses ratios for each quarter with explicit indication
+    hits_to_misses_ratios = []
+    for i in range(4):
+        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
+        misses_val = df_quarters[f'Q{i+1}_misses'].iloc[i]
+        if pd.isna(hits_val) and pd.isna(misses_val):
+            hits_to_misses_ratios.append("no_data")
+        elif (hits_val == 0 or pd.isna(hits_val)) and (misses_val != 0 and not pd.isna(misses_val)):
+            hits_to_misses_ratios.append("no_hits")
+        elif (misses_val == 0 or pd.isna(misses_val)) and (hits_val != 0 and not pd.isna(hits_val)):
+            hits_to_misses_ratios.append("no_misses")
+        elif misses_val == 0 or pd.isna(misses_val):
+            hits_to_misses_ratios.append("no_misses")
+        else:
+            hits_to_misses_ratios.append(hits_val / misses_val)
+
+
+
+
+               ################ Create subplots ####################
+
+
+
+    fig, axs = plt.subplots(4, 1, figsize=(14, 18))
+    
+    fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
 
     # After collecting your speed metrics for each quarter into a DataFrame:
     SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
@@ -1099,16 +1146,30 @@ if __name__ == "__main__":
 
     SpeedPlotter.plot_puff_speed_metrics_table(df_speed_quarters, ax=axs_tables[2])
 
-    # Create a single figure with 3 subplots (vertical)
-    fig, axs = plt.subplots(3, 1, figsize=(14, 18))
-
     # Plot each metric on its own subplot
     LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
     DPrimePlotter.plot_hits_misses_bar(df_quarters, ax=axs[1])
     SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
+    SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs[3])
+
+    
+    LickPlotter.plot_lick_metrics_table(df_quarters, [
+        'Quarter',
+        'average_licks_before_reward',
+        'average_licks_before_reward_zone',
+        'average_licks_after_reward',
+        'ratio_licks_before_reward_to_before_zone',
+        'no_reward_licks_before',
+        'no_reward_licks_after',
+        'n_no_reward_zones',
+    ], ax=axs_tables[0])
 
     plt.tight_layout()
     plt.show()
+
+
+                       ########Append metrics to CSV#########
+
 
     # Prompt for row index
     row_index = int(input("Enter the row index (0-based) to update in the CSV: "))
@@ -1133,7 +1194,6 @@ if __name__ == "__main__":
                 return 1
         return trial_log_df['texture_history'].apply(safe_count).sum()
 
-    # Usage example:
     trial_log_df = pd.read_csv(trial_log_path, engine='python')
     n_trials = count_total_trials(trial_log_df)
 
@@ -1149,6 +1209,12 @@ if __name__ == "__main__":
         for _, row in df_quarters.iterrows()
     ]
 
+    # Collect speed puff ratios for each quarter
+    speed_puff_ratios = [
+        0 if pd.isna(row['ratio_speed_puffs_puff']) else row['ratio_speed_puffs_puff']
+        for _, row in df_speed_quarters.iterrows()
+    ]
+
     # Append metrics to CSV
     appender = LickMetricsAppender(csv_path)
     appender.append_quarter_ratios(row_index, quarter_ratios)
@@ -1158,5 +1224,7 @@ if __name__ == "__main__":
     session_appender.append_session_length(row_index, session_length_minutes)
     dprime_appender = DPrimeAppender(csv_path)
     dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
+    speed_puff_appender = SpeedMetricsAppender(csv_path)
+    speed_puff_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
