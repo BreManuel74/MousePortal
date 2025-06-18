@@ -651,6 +651,18 @@ class DPrimeAppender:
         df.to_csv(self.csv_path, index=False)
         print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
 
+    def append_correct_rejections_to_false_alarms_ratios(self, row_index, correct_rejections_to_false_alarms_ratios):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'CorrectRejectionsToFalseAlarms_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            # Ensure dtype is object so we can store strings
+            df[col] = df[col].astype(object)
+            df.at[row_index, col] = correct_rejections_to_false_alarms_ratios[i]
+        df.to_csv(self.csv_path, index=False)
+        print(f"Updated row {row_index} with correct rejections/false alarms ratios in {os.path.basename(self.csv_path)}.")
+
 class SpeedMetricsAppender:
     def __init__(self, csv_path):
         self.csv_path = csv_path
@@ -773,20 +785,24 @@ class LickPlotter:
     
 class DPrimePlotter:
     @staticmethod
-    def plot_hits_misses_bar(df_quarters, ax=None):
+    def plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=None):
         hits = [0 if pd.isna(df_quarters[f'Q{i+1}_hits'].iloc[i]) else df_quarters[f'Q{i+1}_hits'].iloc[i] for i in range(4)]
         misses = [0 if pd.isna(df_quarters[f'Q{i+1}_misses'].iloc[i]) else df_quarters[f'Q{i+1}_misses'].iloc[i] for i in range(4)]
+        correct_rejections = [0 if pd.isna(df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i]) else df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i] for i in range(4)]
+        false_alarms = [0 if pd.isna(df_puff_quarters[f'Q{i+1}_false_alarms'].iloc[i]) else df_puff_quarters[f'Q{i+1}_false_alarms'].iloc[i] for i in range(4)]
         quarters_labels = [f'Q{i+1}' for i in range(4)]
         x = np.arange(len(quarters_labels))
-        width = 0.35
+        width = 0.18  # Make bars a bit thinner for four per group
 
         if ax is None:
-            fig3, ax = plt.subplots(figsize=(8, 5))
-        rects1 = ax.bar(x - width/2, hits, width, label='Hits', color='green')
-        rects2 = ax.bar(x + width/2, misses, width, label='Misses', color='red')
+            fig3, ax = plt.subplots(figsize=(10, 5))
+        rects1 = ax.bar(x - 1.5*width, hits, width, label='Hits', color='green')
+        rects2 = ax.bar(x - 0.5*width, misses, width, label='Misses', color='red')
+        rects3 = ax.bar(x + 0.5*width, correct_rejections, width, label='Correct Rejections', color='blue')
+        rects4 = ax.bar(x + 1.5*width, false_alarms, width, label='False Alarms', color='orange')
 
         ax.set_ylabel('Count')
-        ax.set_title('Hits and Misses by Quarter')
+        ax.set_title('Hits, Misses, Correct Rejections, False Alarms by Quarter')
         ax.set_xticks(x)
         ax.set_xticklabels(quarters_labels)
         ax.set_xlim(-0.5, len(x) - 0.5)
@@ -796,7 +812,7 @@ class DPrimePlotter:
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
         # Annotate bars with values
-        for rect in rects1 + rects2:
+        for rect in rects1 + rects2 + rects3 + rects4:
             height = rect.get_height()
             ax.annotate(f'{int(height)}',
                          xy=(rect.get_x() + rect.get_width() / 2, height),
@@ -977,6 +993,10 @@ if __name__ == "__main__":
 
     # --- Puff-based speed analysis per quarter ---
     puff_quarters = speed_analysis.get_puff_quarters()
+    punish_texture_change_time = speed_analysis.prepare_arrays()
+    punish_zone_times_flat = punish_texture_change_time.flatten()
+    punish_zone_times_flat = pd.to_numeric(punish_zone_times_flat, errors='coerce')
+    punish_zone_times_flat = punish_zone_times_flat[~np.isnan(punish_zone_times_flat)]
     puff_quarter_data = []
     for i, q in enumerate(puff_quarters):
         start = q['start']
@@ -987,7 +1007,10 @@ if __name__ == "__main__":
             matched_puff_zone_times=q['matched_puff_zone_times']
         )
         metrics_quarter['Quarter'] = f'Q{i+1}'
-        #print("DEBUG: metrics_quarter dict before append:", metrics_quarter)
+        metrics_quarter[f'Q{i+1}_false_alarms'] = len(q['puff_times'])
+        puff_zones_in_quarter = punish_zone_times_flat[(punish_zone_times_flat >= start) & (punish_zone_times_flat < end)]
+        metrics_quarter[f'Q{i+1}_puff_zones'] = len(puff_zones_in_quarter)
+        metrics_quarter[f'Q{i+1}_correct_rejections'] = len(puff_zones_in_quarter) - len(q['puff_times'])
         puff_quarter_data.append(metrics_quarter)
     #     print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
     #     print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
@@ -1092,19 +1115,6 @@ if __name__ == "__main__":
 
 
 
-
-    # Optionally, add Q#_hits columns for clarity (not strictly necessary if already in DataFrame)
-    for i in range(4):
-        col_hits = f'Q{i+1}_hits'
-        col_reward_zones = f'Q{i+1}_reward_zones'
-        col_misses = f'Q{i+1}_misses'
-        if col_hits not in df_quarters.columns:
-            df_quarters[col_hits] = [row.get(col_hits, 0) for row in quarter_data]
-        if col_reward_zones not in df_quarters.columns:
-            df_quarters[col_reward_zones] = [row.get(col_reward_zones, 0) for row in quarter_data]
-        if col_misses not in df_quarters.columns:
-            df_quarters[col_misses] = [row.get(col_misses, 0) for row in quarter_data]
-
     # Calculate hits to misses ratios for each quarter with explicit indication
     hits_to_misses_ratios = []
     for i in range(4):
@@ -1121,9 +1131,28 @@ if __name__ == "__main__":
         else:
             hits_to_misses_ratios.append(hits_val / misses_val)
 
+    correct_rejections_to_false_alarms_ratios = []
+    for i in range(4):
+        false_alarms_vals = df_puff_quarters[f'Q{i+1}_false_alarms'].iloc[i]
+        correct_rejections_vals = df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i]
+        if pd.isna(false_alarms_vals) and pd.isna(correct_rejections_vals):
+            correct_rejections_to_false_alarms_ratios.append("no_data")
+        elif (false_alarms_vals == 0 or pd.isna(false_alarms_vals)) and (correct_rejections_vals != 0 and not pd.isna(correct_rejections_vals)):
+            correct_rejections_to_false_alarms_ratios.append("no_false_alarms")
+        elif (correct_rejections_vals == 0 or pd.isna(correct_rejections_vals)) and (false_alarms_vals != 0 and not pd.isna(false_alarms_vals)):
+            correct_rejections_to_false_alarms_ratios.append("no_correct_rejections")
+        elif correct_rejections_vals == 0 or pd.isna(correct_rejections_vals):
+            correct_rejections_to_false_alarms_ratios.append("no_correct_rejections")
+        else:
+            correct_rejections_to_false_alarms_ratios.append(correct_rejections_vals / false_alarms_vals)
 
 
-
+              
+              
+              
+              
+              
+              
                ################ Create subplots ####################
 
 
@@ -1148,7 +1177,7 @@ if __name__ == "__main__":
 
     # Plot each metric on its own subplot
     LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
-    DPrimePlotter.plot_hits_misses_bar(df_quarters, ax=axs[1])
+    DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=axs[1])
     SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
     SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs[3])
 
@@ -1166,6 +1195,8 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
+
+
 
 
                        ########Append metrics to CSV#########
@@ -1220,11 +1251,11 @@ if __name__ == "__main__":
     appender.append_quarter_ratios(row_index, quarter_ratios)
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
+    speed_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
     session_appender = SessionLengthAppender(csv_path)
     session_appender.append_session_length(row_index, session_length_minutes)
     dprime_appender = DPrimeAppender(csv_path)
     dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
-    speed_puff_appender = SpeedMetricsAppender(csv_path)
-    speed_puff_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
+    dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
