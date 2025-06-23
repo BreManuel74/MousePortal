@@ -13,7 +13,7 @@ class LickAnalysis:
         self.trial_log_df = pd.read_csv(trial_log_path, engine='python')
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
-        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.90)) / 2
+        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.99)) / 2
         #print(f"Using lick cutoff value: {self.lick_cutoff}")
         self.lick_bout_times = self.capacitive_df.loc[
             self.capacitive_df['capacitive_value'] > self.lick_cutoff, 'elapsed_time'
@@ -77,9 +77,6 @@ class LickAnalysis:
         reward_times_flat = reward_times.values
         if len(reward_change_times_flat) != len(reward_times_flat):
             print("Warning: reward_texture_change_time and reward_times have different lengths!")
-            
-        reward_delays = [t_reward - t_change for t_change, t_reward in zip(reward_change_times_flat, reward_times_flat)]
-        print(f"Reward delays: {reward_delays}")
 
         licks_before_reward = [
             int(np.sum((lick_bout_times >= t_change) & (lick_bout_times < t_reward)))
@@ -133,9 +130,11 @@ class LickAnalysis:
         reward_times_valid = reward_times[valid]
         matched_zone_times_valid = matched_zone_times[valid]
 
-        # Assign each reward to the quarter where its zone started
+        # Enforce minimum reward delay of 1 second
+        reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+
         reward_quarter_indices = ((matched_zone_times_valid - min_time) // quarter_length).astype(int)
-        reward_quarter_indices = np.clip(reward_quarter_indices, 0, 3)  # Ensure indices are 0-3
+        reward_quarter_indices = np.clip(reward_quarter_indices, 0, 3)
 
         quarters = []
         for i in range(4):
@@ -144,7 +143,7 @@ class LickAnalysis:
             mask = reward_quarter_indices == i
             reward_times_q = reward_times_valid[mask]
             matched_zone_times_q = matched_zone_times_valid[mask]
-            reward_delays_q = reward_times_q - matched_zone_times_q
+            reward_delays_q = reward_delays[mask]
             quarters.append({
                 "start": start,
                 "end": end,
@@ -168,7 +167,8 @@ class LickAnalysis:
         if reward_times is not None and matched_zone_times is not None:
             reward_times_valid = reward_times
             matched_zone_times_valid = matched_zone_times
-            reward_delays = reward_times_valid - matched_zone_times_valid
+            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+            print(reward_delays)
         else:
             # Fallback to old logic (for non-quarter use)
             trial_log_window = self.trial_log_df[
@@ -188,7 +188,7 @@ class LickAnalysis:
             valid = ~np.isnan(matched_zone_times)
             reward_times_valid = reward_times[valid]
             matched_zone_times_valid = matched_zone_times[valid]
-            reward_delays = reward_times_valid - matched_zone_times_valid
+            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
 
         licks_before_reward = [
             int(np.sum((lick_bout_times_window >= t_change) & (lick_bout_times_window < t_reward)))
@@ -952,9 +952,9 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827trial_log.csv'
-    treadmill_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827treadmill.csv'
-    capacitive_path = r'Kaufman_Project/Algernon/Session50/beh/1749651827capacitive.csv'
+    trial_log_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
     # Prepare the analysis objects
@@ -1090,13 +1090,13 @@ if __name__ == "__main__":
         metrics_quarter[f'Q{i+1}_reward_zones'] = len(reward_zones_in_quarter)
         metrics_quarter[f'Q{i+1}_misses'] = len(reward_zones_in_quarter) - len(q['reward_times'])
         quarter_data.append(metrics_quarter)
-        # Print metrics for each quarter
+        #Print metrics for each quarter
         # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
         # print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
         # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
         # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
         # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
-        #print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
+        # print(f"Quarter {i+1}: start={q['start']}, end={q['end']}, reward_delays={q['reward_delays']}")
         # # Print if no-reward zone data exists
         # if not np.isnan(metrics_quarter['no_reward_licks_before']) or not np.isnan(metrics_quarter['no_reward_licks_after']):
         #     print(f"  No-reward zones present in this quarter:")
@@ -1104,7 +1104,7 @@ if __name__ == "__main__":
         #     print(f"    Avg licks 2s after zone: {metrics_quarter['no_reward_licks_after']}")
         # else:
         #     print(f"  No-reward zones: None in this quarter")
-        #print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
+        # print(metrics_quarter['n_no_reward_zones'], "no-reward zones in this quarter for licks")
 
     # Create DataFrame
     df_quarters = pd.DataFrame(quarter_data)
