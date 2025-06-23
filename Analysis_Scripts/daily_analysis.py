@@ -168,7 +168,7 @@ class LickAnalysis:
             reward_times_valid = reward_times
             matched_zone_times_valid = matched_zone_times
             reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
-            print(reward_delays)
+            #print(reward_delays)
         else:
             # Fallback to old logic (for non-quarter use)
             trial_log_window = self.trial_log_df[
@@ -227,11 +227,15 @@ class LickAnalysis:
             # For each reward in the window, find the most recent zone before it
             is_zone_used = False
             for t_reward in reward_times:
+                if np.isclose(t_zone, t_reward):
+                    is_zone_used = True
+                    break
                 prior_zones = reward_zone_times_flat[reward_zone_times_flat < t_reward]
                 if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
                     is_zone_used = True
                     break
             #print(f"  Checking zone {t_zone}: is_zone_used_for_reward = {is_zone_used}")
+            #print(f"  Reward times in window: {reward_times}")
             if not is_zone_used:
                 no_reward_zones.append(t_zone)
         #print(f"DEBUG: no_reward_zones identified: {no_reward_zones}")
@@ -419,7 +423,7 @@ class SpeedAnalysis:
         if reward_times is not None and matched_zone_times is not None:
             reward_times_valid = reward_times
             matched_zone_times_valid = matched_zone_times
-            reward_delays = reward_times_valid - matched_zone_times_valid
+            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
         else:
             trial_log_window = self.trial_log_df[
                 (self.trial_log_df['reward_event'] >= start_time) & (self.trial_log_df['reward_event'] < end_time)
@@ -439,7 +443,7 @@ class SpeedAnalysis:
             valid = ~np.isnan(matched_zone_times)
             reward_times_valid = reward_times[valid]
             matched_zone_times_valid = matched_zone_times[valid]
-            reward_delays = reward_times_valid - matched_zone_times_valid
+            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
 
         speeds_before_reward = [
             treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_reward)].mean()
@@ -468,6 +472,9 @@ class SpeedAnalysis:
         for t_zone in reward_zones_in_window:
             is_zone_used = False
             for t_reward in reward_times:
+                if np.isclose(t_zone, t_reward):
+                    is_zone_used = True
+                    break
                 prior_zones = reward_zone_times_flat[reward_zone_times_flat < t_reward]
                 if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
                     is_zone_used = True
@@ -517,7 +524,7 @@ class SpeedAnalysis:
         if puff_times is not None and matched_puff_zone_times is not None:
             puff_times_valid = puff_times
             matched_puff_zone_times_valid = matched_puff_zone_times
-            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+            puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
         else:
             trial_log_window = self.trial_log_df[
                 (self.trial_log_df['puff_event'] >= start_time) & (self.trial_log_df['puff_event'] < end_time)
@@ -537,7 +544,7 @@ class SpeedAnalysis:
             valid = ~np.isnan(matched_puff_zone_times)
             puff_times_valid = puff_times[valid]
             matched_puff_zone_times_valid = matched_puff_zone_times[valid]
-            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+            puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
 
         speeds_before_puff = [
             treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_puff)].mean()
@@ -567,6 +574,9 @@ class SpeedAnalysis:
         for t_zone in puff_zones_in_window:
             is_zone_used = False
             for t_puff in puff_times_valid:
+                if np.isclose(t_zone, t_puff):
+                    is_zone_used = True
+                    break
                 prior_zones = punish_zone_times_flat[punish_zone_times_flat < t_puff]
                 if len(prior_zones) > 0 and prior_zones[-1] == t_zone:
                     is_zone_used = True
@@ -952,9 +962,9 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM12/Session 1/beh/1750694506capacitive.csv'
+    trial_log_path = r'Kaufman_Project/BM14/Session 1/beh/1750699917trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM14/Session 1/beh/1750699918treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM14/Session 1/beh/1750699918capacitive.csv'
     csv_path = r'Progress_Reports/Algernon_log.csv'
 
     # Prepare the analysis objects
