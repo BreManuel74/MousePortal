@@ -962,10 +962,10 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM14/Session 1/beh/1750699917trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM14/Session 1/beh/1750699918treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM14/Session 1/beh/1750699918capacitive.csv'
-    csv_path = r'Progress_Reports/Algernon_log.csv'
+    trial_log_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737capacitive.csv'
+    csv_path = r'Progress_Reports/BM15_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
@@ -1262,10 +1262,10 @@ if __name__ == "__main__":
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
     speed_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
-    session_appender = SessionLengthAppender(csv_path)
-    session_appender.append_session_length(row_index, session_length_minutes)
     dprime_appender = DPrimeAppender(csv_path)
     dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
+    session_appender = SessionLengthAppender(csv_path)
+    session_appender.append_session_length(row_index, session_length_minutes)
