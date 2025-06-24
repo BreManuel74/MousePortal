@@ -23,19 +23,19 @@
     "probe": false,
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 0.001,
+    "reward_time": 0.2,
     "puff_time": 0.1,
     "puff_duration": 700,
     "base_hallway_distribution": {
-        "loc": 4,
-        "scale": 2
+        "loc": 10,
+        "scale": 3
     },
-    "base_hallway_min_value": 2,
+    "base_hallway_min_value": 3,
     "stay_zone_distribution": {
-        "loc": 4,
-        "scale": 2
+        "loc": 10,
+        "scale": 3
     },
-    "stay_zone_min_value": 2,
+    "stay_zone_min_value": 4,
     "go_zone_distribution": {
         "loc": 30,
         "scale": 2

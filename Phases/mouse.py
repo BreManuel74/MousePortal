@@ -654,7 +654,8 @@ class SerialInputManager(DirectObject.DirectObject):
     """
     def __init__(self, teensy_port: str, teensy_baudrate: int = 57600, 
                  arduino_serial: serial.Serial = None, 
-                 messenger: DirectObject = None, test_mode: bool = False) -> None:
+                 messenger: DirectObject = None, test_mode: bool = False,
+                 test_csv_path: str = None) -> None:
         self.teensy_port = teensy_port
         self.teensy_baudrate = teensy_baudrate
         self.arduino_serial = arduino_serial  # Use the shared instance
@@ -667,11 +668,11 @@ class SerialInputManager(DirectObject.DirectObject):
         # Initialize Teensy connection
         if self.test_mode:
             try:
-                self.test_file = open('test.csv', 'r')
+                self.test_file = open(test_csv_path, 'r')
                 self.test_reader = csv.reader(self.test_file)
                 next(self.test_reader)  # Skip header
             except Exception as e:
-                print(f"Failed to open test.csv: {e}")
+                print(f"Failed to open {test_csv_path}: {e}")
                 raise
         else:
             try:
@@ -697,12 +698,15 @@ class SerialInputManager(DirectObject.DirectObject):
         if self.test_mode:
             # Read data from the test CSV file
             try:
-                line = next(self.test_reader)  # Get the next line from the CSV reader
+                line = next(self.test_reader)
+                #print("Test mode line:", line)  # <-- Add this
                 if line:
-                    # Parse the line as if it were from the Teensy
                     data = self._parse_line(','.join(line))
+                    #print("Parsed data:", data)  # <-- Add this
                     if data:
                         self.messenger.send("readSerial", [data])
+                return Task.cont
+        
             except StopIteration:
                 # End of the CSV file; stop the task
                 print("End of test.csv reached.")
@@ -822,7 +826,7 @@ class SerialInputManager(DirectObject.DirectObject):
                 self.teensy_serial.close()
             if self.arduino_serial:
                 self.arduino_serial.close()
-
+                
 class SerialOutputManager(DirectObject.DirectObject):
     """
     Manages serial output to an Arduino.
@@ -1182,7 +1186,8 @@ class MousePortal(ShowBase):
             teensy_baudrate=self.cfg["teensy_baudrate"],
             arduino_serial=self.arduino_serial,  # Pass the shared instance
             messenger=self.messenger,
-            test_mode=self.cfg.get("test_mode", False)
+            test_mode=self.cfg.get("test_mode"),
+            test_csv_path= r'C:\Users\Sipe_Lab\MousePortal\Kaufman_Project\BM14\Session 1\beh\1750699918treadmill.csv'
         )
 
         # Set up serial output to Arduino
@@ -1398,6 +1403,6 @@ class MousePortal(ShowBase):
 if __name__ == "__main__":
     config_path = os.environ.get("LEVEL_CONFIG_PATH")
     if config_path is None:
-        config_path = "levels/blank1_1.json"
+        config_path = "Levels\blank_mouse.json"
     app = MousePortal(config_path)
     app.run()
