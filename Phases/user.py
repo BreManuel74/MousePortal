@@ -1079,6 +1079,16 @@ class MousePortal(ShowBase):
             min_value=self.cfg["go_zone_min_value"]
         )
 
+        self.manual_texture_change_times = data_generator.generate_gaussian_data(
+            "manual_texture_change_distribution",
+            min_value=self.cfg["manual_texture_change_min_value"]
+        )
+
+        self.manual_texture_revert_times = data_generator.generate_gaussian_data(
+            "manual_texture_revert_distribution",
+            min_value=self.cfg["manual_texture_revert_min_value"]
+        )
+
         self.trial_csv_path = os.path.join(os.environ.get("OUTPUT_DIR"), f"{int(time.time())}trial_log.csv")
             
         self.segments_to_wait_history = np.array([], dtype=int)
@@ -1258,6 +1268,8 @@ class MousePortal(ShowBase):
         # Add attributes to store time points
         self.enter_go_time = 0.0
         self.enter_stay_time = 0.0
+        
+        self.schedule_next_manual_texture_change()
 
         # Add this line to bind the spacebar to manual texture change
         self.accept("space", self.manual_texture_change)
@@ -1272,6 +1284,16 @@ class MousePortal(ShowBase):
                 return Task.done
             return Task.cont
         base.taskMgr.add(wrapper, name)
+
+    def schedule_next_manual_texture_change(self):
+        """Schedule the next manual texture change using a random time from the distribution."""
+        delay = float(np.random.choice(self.manual_texture_change_times))
+        self.doMethodLaterStopwatch(delay, self.manual_texture_change, "manualTextureChangeTimer")
+
+    def schedule_next_manual_texture_revert(self):
+        """Schedule the next manual wall texture revert using a random time from the distribution."""
+        delay = float(np.random.choice(self.manual_texture_revert_times))
+        self.doMethodLaterStopwatch(delay, self.manual_revert_wall_textures, "manualTextureRevertTimer")
 
     def set_key(self, key: str, value: bool) -> None:
         """
@@ -1369,17 +1391,23 @@ class MousePortal(ShowBase):
         
         return Task.cont
 
-    def manual_texture_change(self):
+    def manual_texture_change(self, task=None):
         """Manually trigger a wall texture change."""
         self.corridor.change_wall_textures()
         # Update enter_stay_time if the new texture is the stop texture
         new_texture = self.corridor.left_segments[0].getTexture().getFilename()
         if new_texture == self.corridor.stop_texture:
             self.enter_stay_time = global_stopwatch.get_elapsed_time()
+        self.schedule_next_manual_texture_revert()
+        if task is not None:
+            return Task.done
 
-    def manual_revert_wall_textures(self):
+    def manual_revert_wall_textures(self, task=None):
         """Manually revert wall textures to the original textures."""
         self.corridor.revert_wall_textures()
+        self.schedule_next_manual_texture_change()
+        if task is not None:
+            return Task.done
 
     def userExit(self):
         """Override userExit to ensure subprocess is stopped and cleanup occurs."""

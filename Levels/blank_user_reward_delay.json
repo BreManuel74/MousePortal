@@ -40,6 +40,16 @@
         "loc": 30,
         "scale": 2
     },
+    "manual_texture_change_distribution": {
+    "loc": 4,
+    "scale": 3
+    },
+    "manual_texture_revert_distribution": {
+    "loc": 3,
+    "scale": 1
+    },
+    "manual_texture_revert_min_value": 1,
+    "manual_texture_change_min_value": 2,
     "go_zone_min_value": 1,
     "puff_to_neutral_time": 3.0,
     "reward_amount": 5,
