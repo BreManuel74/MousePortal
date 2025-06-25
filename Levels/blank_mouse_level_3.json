@@ -27,12 +27,12 @@
     "puff_time": 0.1,
     "puff_duration": 700,
     "base_hallway_distribution": {
-        "loc": 10,
+        "loc": 6,
         "scale": 3
     },
-    "base_hallway_min_value": 3,
+    "base_hallway_min_value": 2,
     "stay_zone_distribution": {
-        "loc": 10,
+        "loc": 8,
         "scale": 3
     },
     "stay_zone_min_value": 4,
