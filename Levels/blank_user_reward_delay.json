@@ -41,8 +41,8 @@
         "scale": 2
     },
     "manual_texture_change_distribution": {
-    "loc": 4,
-    "scale": 3
+    "loc": 12,
+    "scale": 6
     },
     "manual_texture_revert_distribution": {
     "loc": 3,
