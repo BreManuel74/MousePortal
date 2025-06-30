@@ -19,11 +19,11 @@
     "go_texture": "assets/punish_mean100.jpg", 
     "neutral_stim_1": "assets/grating_mean100.jpg",
     "stop_texture": "assets/reward_mean100.jpg",
-    "test_mode": true,
+    "test_mode": false,
     "probe": false,
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 0.1,
+    "reward_time": 0.2,
     "puff_time": 0.1,
     "puff_duration": 700,
     "base_hallway_distribution": {
