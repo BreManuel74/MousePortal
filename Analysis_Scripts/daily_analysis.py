@@ -13,7 +13,7 @@ class LickAnalysis:
         self.trial_log_df = pd.read_csv(trial_log_path, engine='python')
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
-        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.99)) / 2
+        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.997)) / 2
         print(f"Using lick cutoff value: {self.lick_cutoff}")
         self.lick_bout_times = self.capacitive_df.loc[
             self.capacitive_df['capacitive_value'] > self.lick_cutoff, 'elapsed_time'
@@ -778,7 +778,8 @@ class LickPlotter:
         ax.set_xlim(-0.5, len(x) - 0.5)
         ax.set_ylabel('Licks Bouts')
         ax.set_title('Lick Metrics by Session Quarter')
-        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        # Move legend inside the plot area to avoid cutoff
+        ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         return ax
@@ -875,11 +876,14 @@ class SpeedPlotter:
         ax.set_xlim(-0.5, len(x) - 0.5)
         ax.set_ylabel('Speed')
         ax.set_title('Speed Metrics by Session Quarter')
-        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        # Add a horizontal line at y=0
+        ax.axhline(0, color='black', linewidth=2)
+        # Move legend inside the plot area to avoid cutoff
+        ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         return ax
-    
+
     @staticmethod
     def plot_speed_puff_metrics(df_speed_quarters, ax=None):
         df_plot = df_speed_quarters.fillna(0)
@@ -913,7 +917,8 @@ class SpeedPlotter:
         ax.set_xlim(-0.5, len(x) - 0.5)
         ax.set_ylabel('Speed')
         ax.set_title('Puff Speed Metrics by Session Quarter')
-        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        # Move legend inside the plot area to avoid cutoff
+        ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         return ax
@@ -1113,7 +1118,7 @@ if __name__ == "__main__":
         quarter_data.append(metrics_quarter)
         #Print metrics for each quarter
         # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
-        print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
+        #print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
         # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
         # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
         # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
@@ -1182,6 +1187,8 @@ if __name__ == "__main__":
     
     fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
 
+    speed_fig, axs_speed = plt.subplots(2, 1, figsize=(14, 12))
+
     # After collecting your speed metrics for each quarter into a DataFrame:
     SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
         'Quarter',
@@ -1199,8 +1206,8 @@ if __name__ == "__main__":
     # Plot each metric on its own subplot
     LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
     DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=axs[1])
-    # SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
-    # SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs[3])
+    SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs_speed[0])
+    SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs_speed[1])
 
     
     LickPlotter.plot_lick_metrics_table(df_quarters, [
