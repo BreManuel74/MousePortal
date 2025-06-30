@@ -14,7 +14,7 @@ class LickAnalysis:
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
         self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.99)) / 2
-        #print(f"Using lick cutoff value: {self.lick_cutoff}")
+        print(f"Using lick cutoff value: {self.lick_cutoff}")
         self.lick_bout_times = self.capacitive_df.loc[
             self.capacitive_df['capacitive_value'] > self.lick_cutoff, 'elapsed_time'
         ].values
@@ -65,50 +65,50 @@ class LickAnalysis:
         reward_texture_change_time = reward_array[:, 1, :]
         return reward_texture_change_time
 
-    def compute_metrics(self):
-        reward_texture_change_time = self.prepare_arrays()
-        reward_times = pd.to_numeric(self.trial_log_df['reward_event'], errors='coerce').dropna()
-        lick_bout_times = self.lick_bout_times
+    # def compute_metrics(self):
+    #     reward_texture_change_time = self.prepare_arrays()
+    #     reward_times = pd.to_numeric(self.trial_log_df['reward_event'], errors='coerce').dropna()
+    #     lick_bout_times = self.lick_bout_times
 
-        reward_change_times_flat = reward_texture_change_time.flatten()
-        reward_change_times_flat = pd.to_numeric(reward_change_times_flat, errors='coerce')
-        reward_change_times_flat = reward_change_times_flat[~np.isnan(reward_change_times_flat)]
+    #     reward_change_times_flat = reward_texture_change_time.flatten()
+    #     reward_change_times_flat = pd.to_numeric(reward_change_times_flat, errors='coerce')
+    #     reward_change_times_flat = reward_change_times_flat[~np.isnan(reward_change_times_flat)]
 
-        reward_times_flat = reward_times.values
-        if len(reward_change_times_flat) != len(reward_times_flat):
-            print("Warning: reward_texture_change_time and reward_times have different lengths!")
+    #     reward_times_flat = reward_times.values
+    #     if len(reward_change_times_flat) != len(reward_times_flat):
+    #         print("Warning: reward_texture_change_time and reward_times have different lengths!")
 
-        licks_before_reward = [
-            int(np.sum((lick_bout_times >= t_change) & (lick_bout_times < t_reward)))
-            for t_change, t_reward in zip(reward_change_times_flat, reward_times_flat)
-        ]
-        average_licks_before_reward = np.mean(licks_before_reward)
+    #     licks_before_reward = [
+    #         int(np.sum((lick_bout_times >= t_change) & (lick_bout_times < t_reward)))
+    #         for t_change, t_reward in zip(reward_change_times_flat, reward_times_flat)
+    #     ]
+    #     average_licks_before_reward = np.mean(licks_before_reward)
 
-        licks_before_reward_zone = [
-            int(np.sum((lick_bout_times >= (reward_time - reward_delay)) & (lick_bout_times < reward_time)))
-            for reward_time in reward_change_times_flat
-            for reward_delay in reward_delays
-        ]
-        average_licks_before_reward_zone = np.mean(licks_before_reward_zone)
+    #     licks_before_reward_zone = [
+    #         int(np.sum((lick_bout_times >= (reward_time - reward_delay)) & (lick_bout_times < reward_time)))
+    #         for reward_time in reward_change_times_flat
+    #         for reward_delay in reward_delays
+    #     ]
+    #     average_licks_before_reward_zone = np.mean(licks_before_reward_zone)
 
-        licks_after_reward = [
-            int(np.sum((lick_bout_times >= reward_time) & (lick_bout_times < (reward_time + reward_delay))))
-            for reward_time in reward_times
-            for reward_delay in reward_delays
-        ]
-        average_licks_after_reward = np.mean(licks_after_reward)
+    #     licks_after_reward = [
+    #         int(np.sum((lick_bout_times >= reward_time) & (lick_bout_times < (reward_time + reward_delay))))
+    #         for reward_time in reward_times
+    #         for reward_delay in reward_delays
+    #     ]
+    #     average_licks_after_reward = np.mean(licks_after_reward)
 
-        ratio_licks_before_reward_to_before_zone = (
-            average_licks_before_reward / average_licks_before_reward_zone
-            if average_licks_before_reward_zone != 0 else np.nan
-        )
+    #     ratio_licks_before_reward_to_before_zone = (
+    #         average_licks_before_reward / average_licks_before_reward_zone
+    #         if average_licks_before_reward_zone != 0 else np.nan
+    #     )
 
-        return {
-            "average_licks_before_reward": average_licks_before_reward,
-            "average_licks_before_reward_zone": average_licks_before_reward_zone,
-            "average_licks_after_reward": average_licks_after_reward,
-            "ratio_licks_before_reward_to_before_zone": ratio_licks_before_reward_to_before_zone
-        }
+    #     return {
+    #         "average_licks_before_reward": average_licks_before_reward,
+    #         "average_licks_before_reward_zone": average_licks_before_reward_zone,
+    #         "average_licks_after_reward": average_licks_after_reward,
+    #         "ratio_licks_before_reward_to_before_zone": ratio_licks_before_reward_to_before_zone
+    #     }
 
     def get_session_quarters(self):
         """Return a list of dicts for each quarter with (start, end, reward_delays)."""
@@ -131,7 +131,8 @@ class LickAnalysis:
         matched_zone_times_valid = matched_zone_times[valid]
 
         # Enforce minimum reward delay of 1 second
-        reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+        reward_delays = reward_times_valid - matched_zone_times_valid
+        #reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
 
         reward_quarter_indices = ((matched_zone_times_valid - min_time) // quarter_length).astype(int)
         reward_quarter_indices = np.clip(reward_quarter_indices, 0, 3)
@@ -167,7 +168,8 @@ class LickAnalysis:
         if reward_times is not None and matched_zone_times is not None:
             reward_times_valid = reward_times
             matched_zone_times_valid = matched_zone_times
-            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+            reward_delays = reward_times_valid - matched_zone_times_valid
+            #reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
             #print(reward_delays)
         else:
             # Fallback to old logic (for non-quarter use)
@@ -188,7 +190,8 @@ class LickAnalysis:
             valid = ~np.isnan(matched_zone_times)
             reward_times_valid = reward_times[valid]
             matched_zone_times_valid = matched_zone_times[valid]
-            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+            reward_delays = reward_times_valid - matched_zone_times_valid
+            #reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
 
         licks_before_reward = [
             int(np.sum((lick_bout_times_window >= t_change) & (lick_bout_times_window < t_reward)))
@@ -196,18 +199,22 @@ class LickAnalysis:
         ]
         #print(f"DEBUG: licks_before_reward for {start_time}-{end_time}: {licks_before_reward}")
         average_licks_before_reward = int(np.mean(licks_before_reward)) if licks_before_reward else np.nan
+        average_licks_before_reward = np.round(np.mean(licks_before_reward), 3) if licks_before_reward else np.nan
+        #print(f"DEBUG: average_licks_before_reward for {start_time}-{end_time}: {average_licks_before_reward}")
 
         licks_before_reward_zone = [
             int(np.sum((lick_bout_times_window >= (t_change - delay)) & (lick_bout_times_window < t_change)))
             for t_change, delay in zip(matched_zone_times_valid, reward_delays)
         ]
         average_licks_before_reward_zone = int(np.mean(licks_before_reward_zone)) if licks_before_reward_zone else np.nan
+        average_licks_before_reward_zone = np.round(np.mean(licks_before_reward_zone), 3) if licks_before_reward_zone else np.nan
 
         licks_after_reward = [
             int(np.sum((lick_bout_times_window >= t_reward) & (lick_bout_times_window < (t_reward + delay))))
             for t_reward, delay in zip(reward_times_valid, reward_delays)
         ]
         average_licks_after_reward = int(np.mean(licks_after_reward)) if licks_after_reward else np.nan
+        average_licks_after_reward = np.round(np.mean(licks_after_reward), 3) if licks_after_reward else np.nan
 
         ratio_licks_before_reward_to_before_zone = (
             average_licks_before_reward / average_licks_before_reward_zone
@@ -423,7 +430,8 @@ class SpeedAnalysis:
         if reward_times is not None and matched_zone_times is not None:
             reward_times_valid = reward_times
             matched_zone_times_valid = matched_zone_times
-            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+            reward_delays = reward_times_valid - matched_zone_times_valid
+            #reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
         else:
             trial_log_window = self.trial_log_df[
                 (self.trial_log_df['reward_event'] >= start_time) & (self.trial_log_df['reward_event'] < end_time)
@@ -443,7 +451,8 @@ class SpeedAnalysis:
             valid = ~np.isnan(matched_zone_times)
             reward_times_valid = reward_times[valid]
             matched_zone_times_valid = matched_zone_times[valid]
-            reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
+            reward_delays = reward_times_valid - matched_zone_times_valid
+            #reward_delays = np.maximum(reward_times_valid - matched_zone_times_valid, 1.0)
 
         speeds_before_reward = [
             treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_reward)].mean()
@@ -524,7 +533,8 @@ class SpeedAnalysis:
         if puff_times is not None and matched_puff_zone_times is not None:
             puff_times_valid = puff_times
             matched_puff_zone_times_valid = matched_puff_zone_times
-            puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
+            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+            #puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
         else:
             trial_log_window = self.trial_log_df[
                 (self.trial_log_df['puff_event'] >= start_time) & (self.trial_log_df['puff_event'] < end_time)
@@ -544,7 +554,8 @@ class SpeedAnalysis:
             valid = ~np.isnan(matched_puff_zone_times)
             puff_times_valid = puff_times[valid]
             matched_puff_zone_times_valid = matched_puff_zone_times[valid]
-            puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
+            puff_delays = puff_times_valid - matched_puff_zone_times_valid
+            #puff_delays = np.maximum(puff_times_valid - matched_puff_zone_times_valid, 1.0)
 
         speeds_before_puff = [
             treadmill_interp_window[(speed_times_window >= t_change) & (speed_times_window < t_puff)].mean()
@@ -962,10 +973,10 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM15/Session 1/beh/1750702737capacitive.csv'
-    csv_path = r'Progress_Reports/BM15_log.csv'
+    trial_log_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611capacitive.csv'
+    csv_path = r'Progress_Reports/BM13_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
@@ -1102,7 +1113,7 @@ if __name__ == "__main__":
         quarter_data.append(metrics_quarter)
         #Print metrics for each quarter
         # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
-        # print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
+        print(f"  Avg licks before reward: {metrics_quarter['average_licks_before_reward']}")
         # print(f"  Avg licks before reward zone: {metrics_quarter['average_licks_before_reward_zone']}")
         # print(f"  Avg licks after reward: {metrics_quarter['average_licks_after_reward']}")
         # print(f"  Ratio before reward / before zone: {metrics_quarter['ratio_licks_before_reward_to_before_zone']}\n")
@@ -1167,7 +1178,7 @@ if __name__ == "__main__":
 
 
 
-    fig, axs = plt.subplots(4, 1, figsize=(14, 18))
+    fig, axs = plt.subplots(2, 1, figsize=(14, 18))
     
     fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
 
@@ -1188,8 +1199,8 @@ if __name__ == "__main__":
     # Plot each metric on its own subplot
     LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
     DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=axs[1])
-    SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
-    SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs[3])
+    # SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs[2])
+    # SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs[3])
 
     
     LickPlotter.plot_lick_metrics_table(df_quarters, [
