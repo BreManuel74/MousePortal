@@ -4,9 +4,9 @@ import numpy as np
 import ast
 
 # File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/BM14/Session 9/beh/1751563742trial_log.csv'
-treadmill_path = r'Kaufman_Project/BM14/Session 9/beh/1751563742treadmill.csv'
-capacitive_path = r'Kaufman_Project/BM14/Session 9/beh/1751563742capacitive.csv'
+trial_log_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702trial_log.csv'
+treadmill_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702treadmill.csv'
+capacitive_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702capacitive.csv'
 output_folder = r"Kaufman_Project/BM14/Session 9/beh"
 output_path = f"{output_folder}\\timeline.svg"
 
@@ -298,6 +298,7 @@ plt.title('Treadmill Speed Aligned to Reward Zone Onset')
 plt.legend()
 plt.xticks(np.arange(-5, 6, 1))
 plt.xlim(-5, 5)
+plt.ylim(bottom=0)
 ax = plt.gca()
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
@@ -348,9 +349,45 @@ plt.title('Capacitive Value Aligned to Reward Event')
 plt.legend()
 plt.xticks(np.arange(-5, 6, 1))
 plt.xlim(-5, 5)
+plt.ylim(bottom=0)
 ax = plt.gca()
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 ax.tick_params(axis='both', direction='out')
+plt.tight_layout()
+#plt.show()
+
+# --- Combined Subplots: Treadmill Speed and Capacitive Value aligned to reward_event_times_flat ---
+
+fig, axs = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+# --- Plot 1: Treadmill Speed aligned to reward_times_flat ---
+axs[0].plot(aligned_time_speed, mean_speed, color='purple', label=f'Mean Speed (n={n_rewards_speed})')
+axs[0].fill_between(aligned_time_speed, mean_speed - sem_speed, mean_speed + sem_speed, color='purple', alpha=0.2, label='SEM')
+axs[0].axvline(0, color='red', linestyle='--', label='Reward Onset (t=0)')
+axs[0].set_ylabel('Treadmill Speed (interpolated)')
+axs[0].set_title('Treadmill Speed Aligned to Reward Zone Onset')
+axs[0].legend()
+axs[0].set_xlim(-5, 5)
+axs[0].set_ylim(bottom=0)
+axs[0].spines['top'].set_visible(False)
+axs[0].spines['right'].set_visible(False)
+axs[0].tick_params(axis='both', direction='out')
+
+# --- Plot 2: Capacitive Value aligned to reward_event_times_flat ---
+axs[1].plot(aligned_time_event, mean_event_vals, color='green', label=f'Mean (n={n_rewards_event})')
+axs[1].fill_between(aligned_time_event, mean_event_vals - sem_event_vals, mean_event_vals + sem_event_vals, color='green', alpha=0.2, label='SEM')
+axs[1].axvline(0, color='red', linestyle='--', label='Reward Event (t=0)')
+axs[1].set_xlabel('Time from Reward Event (s)')
+axs[1].set_ylabel('Capacitive Value')
+axs[1].set_title('Capacitive Value Aligned to Reward Event')
+axs[1].legend()
+axs[1].set_xlim(-5, 5)
+axs[1].set_ylim(bottom=0)
+axs[1].spines['top'].set_visible(False)
+axs[1].spines['right'].set_visible(False)
+axs[1].tick_params(axis='both', direction='out')
+axs[1].set_xticks(np.arange(-5, 6, 1))
+
 plt.tight_layout()
 plt.show()
