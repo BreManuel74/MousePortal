@@ -13,7 +13,7 @@ class LickAnalysis:
         self.trial_log_df = pd.read_csv(trial_log_path, engine='python')
         self.capacitive_df = pd.read_csv(capacitive_path, comment='/', engine='python')
 
-        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.997)) / 2
+        self.lick_cutoff = (self.capacitive_df['capacitive_value'].quantile(0.99)) / 2
         print(f"Using lick cutoff value: {self.lick_cutoff}")
         self.lick_bout_times = self.capacitive_df.loc[
             self.capacitive_df['capacitive_value'] > self.lick_cutoff, 'elapsed_time'
@@ -978,10 +978,10 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM13/Session 6/beh/1751303611capacitive.csv'
-    csv_path = r'Progress_Reports/BM13_log.csv'
+    trial_log_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702capacitive.csv'
+    csv_path = r'Progress_Reports/BM15_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
@@ -1183,11 +1183,11 @@ if __name__ == "__main__":
 
 
 
-    fig, axs = plt.subplots(2, 1, figsize=(14, 18))
+    # fig, axs = plt.subplots(3, 1, figsize=(14, 18))
     
     fig_tables, axs_tables = plt.subplots(3, 1, figsize=(14, 9))
 
-    speed_fig, axs_speed = plt.subplots(2, 1, figsize=(14, 12))
+    # speed_fig, axs_speed = plt.subplots(2, 1, figsize=(14, 12))
 
     # After collecting your speed metrics for each quarter into a DataFrame:
     SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
@@ -1204,10 +1204,10 @@ if __name__ == "__main__":
     SpeedPlotter.plot_puff_speed_metrics_table(df_speed_quarters, ax=axs_tables[2])
 
     # Plot each metric on its own subplot
-    LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
-    DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=axs[1])
-    SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs_speed[0])
-    SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs_speed[1])
+    # LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
+    DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters)
+    # SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs_speed[0])
+    # SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs_speed[1])
 
     
     LickPlotter.plot_lick_metrics_table(df_quarters, [
@@ -1280,9 +1280,9 @@ if __name__ == "__main__":
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
     speed_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
-    dprime_appender = DPrimeAppender(csv_path)
-    dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
-    dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
+    #dprime_appender = DPrimeAppender(csv_path)
+    #dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
+    #dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
     session_appender = SessionLengthAppender(csv_path)
