@@ -217,8 +217,7 @@ class LickAnalysis:
         average_licks_after_reward = np.round(np.mean(licks_after_reward), 3) if licks_after_reward else np.nan
 
         ratio_licks_before_reward_to_before_zone = (
-            average_licks_before_reward / average_licks_before_reward_zone
-            if average_licks_before_reward_zone and average_licks_before_reward_zone != 0 else np.nan
+            (average_licks_before_reward - average_licks_before_reward_zone)/ 2
         )
 
         # --- New logic for reward zones with NO reward delivery ---
@@ -503,7 +502,7 @@ class SpeedAnalysis:
         avg_no_reward_speed_after = np.nanmean(no_reward_speed_after) if no_reward_speed_after else np.nan
 
         ratio_speed_before_reward_to_before_zone = (
-            avg_speed_before_reward / avg_speed_before_reward_zone
+            (avg_speed_before_reward - avg_speed_before_reward_zone) / 2
             if avg_speed_before_reward_zone and avg_speed_before_reward_zone != 0 else np.nan
         )
 
@@ -606,7 +605,7 @@ class SpeedAnalysis:
         avg_no_puff_speed_before = np.nanmean(no_puff_speed_before) if no_puff_speed_before else np.nan
         avg_no_puff_speed_after = np.nanmean(no_puff_speed_after) if no_puff_speed_after else np.nan
 
-        ratio_speed_puffs = (avg_no_puff_speed_before / avg_no_puff_speed_after
+        ratio_speed_puffs = ((avg_no_puff_speed_before - avg_no_puff_speed_after)/ 2
             if avg_no_puff_speed_after and avg_no_puff_speed_after != 0 else np.nan
         )
 
@@ -654,7 +653,7 @@ class LickMetricsAppender:
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with lick reward quarter ratios in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with lick reward quarter ratios in {os.path.basename(self.csv_path)}.")
 
 class DPrimeAppender:
     def __init__(self, csv_path):
@@ -670,7 +669,7 @@ class DPrimeAppender:
             df[col] = df[col].astype(object)
             df.at[row_index, col] = hits_to_misses_ratios[i]
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with hits/misses ratios in {os.path.basename(self.csv_path)}.")
 
     def append_correct_rejections_to_false_alarms_ratios(self, row_index, correct_rejections_to_false_alarms_ratios):
         df = pd.read_csv(self.csv_path)
@@ -682,7 +681,18 @@ class DPrimeAppender:
             df[col] = df[col].astype(object)
             df.at[row_index, col] = correct_rejections_to_false_alarms_ratios[i]
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with correct rejections/false alarms ratios in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with correct rejections/false alarms ratios in {os.path.basename(self.csv_path)}.")
+
+    def append_sensitivity_values(self, row_index, sensitivity_values):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'Sensitivity_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            value = np.nan if pd.isna(sensitivity_values[i]) else round(sensitivity_values[i], 2)
+            df.at[row_index, col] = value
+        df.to_csv(self.csv_path, index=False)
+        #print(f"Updated row {row_index} with sensitivity values in {os.path.basename(self.csv_path)}.")
 
 class SpeedMetricsAppender:
     def __init__(self, csv_path):
@@ -703,7 +713,7 @@ class SpeedMetricsAppender:
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with speed reward quarter ratios in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with speed reward quarter ratios in {os.path.basename(self.csv_path)}.")
 
     def append_puff_speed_ratios(self, row_index, puff_speed_ratios):
         df = pd.read_csv(self.csv_path)
@@ -720,7 +730,7 @@ class SpeedMetricsAppender:
             df.at[row_index, col] = value
 
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with speed puff quarter ratios in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with speed puff quarter ratios in {os.path.basename(self.csv_path)}.")
 
 class SessionLengthAppender:
     def __init__(self, csv_path):
@@ -732,7 +742,7 @@ class SessionLengthAppender:
             df['session_length'] = np.nan
         df.at[row_index, 'session_length'] = round(session_length_minutes, 2)
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with session length ({session_length_minutes:.2f} min) in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with session length ({session_length_minutes:.2f} min) in {os.path.basename(self.csv_path)}.")
 
 class TrialNumberAppender:
     def __init__(self, csv_path):
@@ -744,7 +754,7 @@ class TrialNumberAppender:
             df['session_trials'] = np.nan
         df.at[row_index, 'session_trials'] = int(n_trials)
         df.to_csv(self.csv_path, index=False)
-        print(f"Updated row {row_index} with session_trials = {n_trials} in {os.path.basename(self.csv_path)}.")
+        #print(f"Updated row {row_index} with session_trials = {n_trials} in {os.path.basename(self.csv_path)}.")
 
 class LickPlotter:
     @staticmethod
@@ -787,8 +797,11 @@ class LickPlotter:
     @staticmethod
     def plot_lick_metrics_table(df_quarters, table_columns, ax=None):
         table_data = df_quarters[table_columns].copy()
-        table_data = table_data.round(2)
-        table_data = table_data.fillna(0)
+        # Format all numbers as strings with 3 decimals, including trailing zeros
+        for col in table_data.columns:
+            table_data[col] = table_data[col].map(
+                lambda x: f"{x:.3f}" if isinstance(x, (float, int)) and not pd.isna(x) else ("0.000" if pd.isna(x) else str(x))
+            )
 
         if ax is None:
             fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
@@ -978,17 +991,17 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702capacitive.csv'
-    csv_path = r'Progress_Reports/BM15_log.csv'
+    trial_log_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114capacitive.csv'
+    csv_path = r'Progress_Reports/Algernon_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
     max_time = analysis.capacitive_df['elapsed_time'].max()
     session_length_minutes = max_time / 60
 
-    # ---------------- SPEED ANALYSIS SECTION ----------------
+    # ---------------- SPEED ANALYSIS SECTION ---------------- 
     speed_analysis = SpeedAnalysis(trial_log_path, capacitive_path, treadmill_path)
 
     # Get session quarters for reward-based speed analysis
@@ -1172,7 +1185,16 @@ if __name__ == "__main__":
         else:
             correct_rejections_to_false_alarms_ratios.append(correct_rejections_vals / false_alarms_vals)
 
-
+    #sensitivity calculation
+    sensitivity_values = []
+    for i in range(4):
+        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
+        misses_val = df_quarters[f'Q{i+1}_misses'].iloc[i]
+        sensitivity_values.append(
+            hits_val / (hits_val + misses_val) if (hits_val + misses_val) > 0 else np.nan
+        )
+        sensitivity_values[-1] = round(sensitivity_values[-1], 2) if not pd.isna(sensitivity_values[-1]) else np.nan
+        #print(f"Quarter {i+1} sensitivity: {sensitivity_values[-1]}")
               
               
               
@@ -1189,7 +1211,7 @@ if __name__ == "__main__":
 
     # speed_fig, axs_speed = plt.subplots(2, 1, figsize=(14, 12))
 
-    # After collecting your speed metrics for each quarter into a DataFrame:
+    # After collecting your speed metrics for each quarter:
     SpeedPlotter.plot_speed_metrics_table(df_speed_quarters, [
         'Quarter',
         'average_speed_before_reward',
@@ -1280,9 +1302,10 @@ if __name__ == "__main__":
     speed_appender = SpeedMetricsAppender(csv_path)
     speed_appender.append_quarter_speed_ratios(row_index, speed_quarter_ratios)
     speed_appender.append_puff_speed_ratios(row_index, speed_puff_ratios)
-    #dprime_appender = DPrimeAppender(csv_path)
+    dprime_appender = DPrimeAppender(csv_path)
     #dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     #dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
+    dprime_appender.append_sensitivity_values(row_index, sensitivity_values)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
     session_appender = SessionLengthAppender(csv_path)
