@@ -4,11 +4,11 @@ import numpy as np
 import ast
 
 # File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702trial_log.csv'
-treadmill_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702treadmill.csv'
-capacitive_path = r'Kaufman_Project/BM15/Session 10/beh/1751652702capacitive.csv'
-output_folder = r"Kaufman_Project/BM14/Session 9/beh"
-output_path = f"{output_folder}\\timeline.svg"
+trial_log_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272trial_log.csv'
+treadmill_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272treadmill.csv'
+capacitive_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272capacitive.csv'
+# output_folder = r"Kaufman_Project/BM14/Session 9/beh"
+# output_path = f"{output_folder}\\timeline.svg"
 
 # Read the CSV files into pandas DataFrames
 trial_log_df = pd.read_csv(trial_log_path, engine='python')
@@ -281,46 +281,29 @@ speed_windows_padded = np.array([
 # Create a common time axis centered at 0 for speed
 aligned_time_speed = np.linspace(-window, window, max_speed_len)
 
-plt.figure(figsize=(10, 6))
-
 n_rewards_speed = speed_windows_padded.shape[0]
 
 # Plot mean and SEM for speed
 mean_speed = np.nanmean(speed_windows_padded, axis=0)
 sem_speed = np.nanstd(speed_windows_padded, axis=0) / np.sqrt(np.sum(~np.isnan(speed_windows_padded), axis=0))
-plt.plot(aligned_time_speed, mean_speed, color='purple', label=f'Mean Speed (n={n_rewards_speed})')
-plt.fill_between(aligned_time_speed, mean_speed - sem_speed, mean_speed + sem_speed, color='purple', alpha=0.2, label='SEM')
-
-plt.axvline(0, color='red', linestyle='--', label='Reward Onset (t=0)')
-plt.xlabel('Time from Reward Zone Onset (s)')
-plt.ylabel('Treadmill Speed (interpolated)')
-plt.title('Treadmill Speed Aligned to Reward Zone Onset')
-plt.legend()
-plt.xticks(np.arange(-5, 6, 1))
-plt.xlim(-5, 5)
-plt.ylim(bottom=0)
-ax = plt.gca()
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.tick_params(axis='both', direction='out')
-plt.tight_layout()
-#plt.show()
 
 # --- Capacitive Value aligned to reward_event_times_flat ---
 
 reward_event_times_flat = pd.to_numeric(trial_log_df['reward_event'], errors='coerce').dropna()
 reward_event_times_flat = reward_event_times_flat[~np.isnan(reward_event_times_flat)]
 
-window = 5  # seconds before and after
+window_event = 5  # seconds before and after for capacitive analysis
 
 # Ensure reward_event_times_flat is a numpy array of floats
 reward_event_times_flat = np.array(reward_event_times_flat, dtype=float)
 
 cap_event_windows = []
 for rt in reward_event_times_flat:
-    mask = (cap_time >= rt - window) & (cap_time <= rt + window)
+    mask = (cap_time >= rt - window_event) & (cap_time <= rt + window_event)
     cap_segment = cap_val[mask]
     cap_event_windows.append(cap_segment)
+
+#print(len(cap_event_windows))
 
 # Pad all segments to the same length (max found)
 max_event_len = max(len(seg) for seg in cap_event_windows)
@@ -329,33 +312,29 @@ cap_event_windows_padded = np.array([
     for seg in cap_event_windows
 ])
 
+# Apply moving median filter (3-point window) to each row before averaging
+def apply_moving_median_3point(data):
+    """Apply 3-point moving median filter to 2D array along axis 1"""
+    filtered = np.copy(data)
+    for i in range(data.shape[0]):
+        row = data[i, :]
+        # Use numpy's median with sliding window
+        for j in range(1, len(row) - 1):
+            window = row[j-1:j+2]
+            if not np.isnan(window).any():
+                filtered[i, j] = np.median(window)
+    return filtered
+
+cap_event_windows_filtered = apply_moving_median_3point(cap_event_windows_padded)
+
 # Create a common time axis centered at 0
-aligned_time_event = np.linspace(-window, window, max_event_len)
+aligned_time_event = np.linspace(-window_event, window_event, max_event_len)
 
-plt.figure(figsize=(10, 6))
+n_rewards_event = cap_event_windows_filtered.shape[0]
 
-n_rewards_event = cap_event_windows_padded.shape[0]
-
-# Plot mean and SEM
-mean_event_vals = np.nanmean(cap_event_windows_padded, axis=0)
-sem_event_vals = np.nanstd(cap_event_windows_padded, axis=0) / np.sqrt(np.sum(~np.isnan(cap_event_windows_padded), axis=0))
-plt.plot(aligned_time_event, mean_event_vals, color='green', label=f'Mean (n={n_rewards_event})')
-plt.fill_between(aligned_time_event, mean_event_vals - sem_event_vals, mean_event_vals + sem_event_vals, color='green', alpha=0.2, label='SEM')
-
-plt.axvline(0, color='red', linestyle='--', label='Reward Event (t=0)')
-plt.xlabel('Time from Reward Event (s)')
-plt.ylabel('Capacitive Value')
-plt.title('Capacitive Value Aligned to Reward Event')
-plt.legend()
-plt.xticks(np.arange(-5, 6, 1))
-plt.xlim(-5, 5)
-plt.ylim(bottom=0)
-ax = plt.gca()
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.tick_params(axis='both', direction='out')
-plt.tight_layout()
-#plt.show()
+# Plot mean and SEM using filtered data
+mean_event_vals = np.nanmean(cap_event_windows_filtered, axis=0)
+sem_event_vals = np.nanstd(cap_event_windows_filtered, axis=0) / np.sqrt(np.sum(~np.isnan(cap_event_windows_filtered), axis=0))
 
 # --- Combined Subplots: Treadmill Speed and Capacitive Value aligned to reward_event_times_flat ---
 
@@ -369,12 +348,12 @@ axs[0].set_ylabel('Treadmill Speed (interpolated)')
 axs[0].set_title('Treadmill Speed Aligned to Reward Zone Onset')
 axs[0].legend()
 axs[0].set_xlim(-5, 5)
-axs[0].set_ylim(bottom=0)
+#axs[0].set_ylim(bottom=0)
 axs[0].spines['top'].set_visible(False)
 axs[0].spines['right'].set_visible(False)
 axs[0].tick_params(axis='both', direction='out')
 
-# --- Plot 2: Capacitive Value aligned to reward_event_times_flat ---
+# --- Plot 2: Capacitive Value aligned to reward_event_times_flat (5s window) ---
 axs[1].plot(aligned_time_event, mean_event_vals, color='green', label=f'Mean (n={n_rewards_event})')
 axs[1].fill_between(aligned_time_event, mean_event_vals - sem_event_vals, mean_event_vals + sem_event_vals, color='green', alpha=0.2, label='SEM')
 axs[1].axvline(0, color='red', linestyle='--', label='Reward Event (t=0)')
@@ -388,6 +367,151 @@ axs[1].spines['top'].set_visible(False)
 axs[1].spines['right'].set_visible(False)
 axs[1].tick_params(axis='both', direction='out')
 axs[1].set_xticks(np.arange(-5, 6, 1))
+
+plt.tight_layout()
+
+
+# --- Probe Event Analysis: Treadmill Speed and Capacitive Value aligned to probe events ---
+
+# Check if probe events exist
+if 'probe_time' in trial_log_df.columns:
+    probe_event_times_flat = pd.to_numeric(trial_log_df['probe_time'], errors='coerce').dropna()
+    probe_event_times_flat = probe_event_times_flat[~np.isnan(probe_event_times_flat)]
+    
+    if len(probe_event_times_flat) > 0:
+        window = 5  # seconds before and after
+        
+        # Ensure probe_event_times_flat is a numpy array of floats
+        probe_event_times_flat = np.array(probe_event_times_flat, dtype=float)
+        
+        # --- Capacitive Value aligned to probe events ---
+        cap_probe_windows = []
+        for pt in probe_event_times_flat:
+            mask = (cap_time >= pt - window) & (cap_time <= pt + window)
+            cap_segment = cap_val[mask]
+            cap_probe_windows.append(cap_segment)
+        
+        # Pad all segments to the same length (max found)
+        max_probe_len = max(len(seg) for seg in cap_probe_windows) if cap_probe_windows else 0
+        if max_probe_len > 0:
+            cap_probe_windows_padded = np.array([
+                np.pad(seg.astype(float), (0, max_probe_len - len(seg)), constant_values=np.nan)
+                for seg in cap_probe_windows
+            ])
+            
+            # Apply moving median filter (3-point window) to probe capacitive data
+            cap_probe_windows_filtered = apply_moving_median_3point(cap_probe_windows_padded)
+            
+            # --- Treadmill Speed aligned to probe events ---
+            speed_probe_windows = []
+            for pt in probe_event_times_flat:
+                mask = (cap_time >= pt - window) & (cap_time <= pt + window)
+                speed_segment = speed_val[mask]
+                speed_probe_windows.append(speed_segment)
+            
+            # Pad speed segments to the same length
+            speed_probe_windows_padded = np.array([
+                np.pad(seg.astype(float), (0, max_probe_len - len(seg)), constant_values=np.nan)
+                for seg in speed_probe_windows
+            ])
+            
+            # Create a common time axis centered at 0
+            aligned_time_probe = np.linspace(-window, window, max_probe_len)
+            
+            # --- Combined Subplots: Treadmill Speed and Capacitive Value aligned to probe events ---
+            
+            fig, axs = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+            
+            n_probes = cap_probe_windows_padded.shape[0]
+            
+            # --- Plot 1: Treadmill Speed aligned to probe events ---
+            mean_speed_probe = np.nanmean(speed_probe_windows_padded, axis=0)
+            sem_speed_probe = np.nanstd(speed_probe_windows_padded, axis=0) / np.sqrt(np.sum(~np.isnan(speed_probe_windows_padded), axis=0))
+            axs[0].plot(aligned_time_probe, mean_speed_probe, color='purple', label=f'Mean Speed (n={n_probes})')
+            axs[0].fill_between(aligned_time_probe, mean_speed_probe - sem_speed_probe, mean_speed_probe + sem_speed_probe, color='purple', alpha=0.2, label='SEM')
+            axs[0].axvline(0, color='black', linestyle='--', label='Probe Event (t=0)')
+            axs[0].set_ylabel('Treadmill Speed (interpolated)')
+            axs[0].set_title('Treadmill Speed Aligned to Probe Events')
+            axs[0].legend()
+            axs[0].set_xlim(-5, 5)
+            axs[0].spines['top'].set_visible(False)
+            axs[0].spines['right'].set_visible(False)
+            axs[0].tick_params(axis='both', direction='out')
+            
+            # --- Plot 2: Capacitive Value aligned to probe events ---
+            mean_cap_probe = np.nanmean(cap_probe_windows_filtered, axis=0)
+            sem_cap_probe = np.nanstd(cap_probe_windows_filtered, axis=0) / np.sqrt(np.sum(~np.isnan(cap_probe_windows_filtered), axis=0))
+            axs[1].plot(aligned_time_probe, mean_cap_probe, color='green', label=f'Mean (n={n_probes})')
+            axs[1].fill_between(aligned_time_probe, mean_cap_probe - sem_cap_probe, mean_cap_probe + sem_cap_probe, color='green', alpha=0.2, label='SEM')
+            axs[1].axvline(0, color='black', linestyle='--', label='Probe Event (t=0)')
+            axs[1].set_xlabel('Time from Probe Event (s)')
+            axs[1].set_ylabel('Capacitive Value')
+            axs[1].set_title('Capacitive Value Aligned to Probe Events')
+            axs[1].legend()
+            axs[1].set_xlim(-5, 5)
+            axs[1].set_ylim(bottom=0)
+            axs[1].spines['top'].set_visible(False)
+            axs[1].spines['right'].set_visible(False)
+            axs[1].tick_params(axis='both', direction='out')
+            axs[1].set_xticks(np.arange(-5, 6, 1))
+            
+            plt.tight_layout()
+            #plt.show()
+        else:
+            print("No valid probe event data found for alignment analysis.")
+    else:
+        print("No probe events found in the data.")
+else:
+    print("No 'probe_time' column found in trial_log_df.")
+
+plt.tight_layout()
+
+# --- Prepare data for heatmap with 2-second window ---
+window_heatmap = 2  # seconds before and after for heatmap
+
+cap_event_windows_heatmap = []
+for rt in reward_event_times_flat:
+    mask = (cap_time >= rt - window_heatmap) & (cap_time <= rt + window_heatmap)
+    cap_segment = cap_val[mask]
+    cap_event_windows_heatmap.append(cap_segment)
+
+# Pad all segments to the same length (max found)
+max_event_len_heatmap = max(len(seg) for seg in cap_event_windows_heatmap)
+cap_event_windows_padded_heatmap = np.array([
+    np.pad(seg.astype(float), (0, max_event_len_heatmap - len(seg)), constant_values=np.nan)
+    for seg in cap_event_windows_heatmap
+])
+
+# --- Heatmap of cap_event_windows (2s window) ---
+
+plt.figure(figsize=(12, 8))
+
+# Create the heatmap using 2-second window data
+im = plt.imshow(cap_event_windows_padded_heatmap, aspect='auto', cmap='gray_r', interpolation='nearest')
+
+# Set up the time axis labels for 2-second window
+n_timepoints = cap_event_windows_padded_heatmap.shape[1]
+#print("Number of timepoints:", n_timepoints)
+time_labels = np.linspace(-window_heatmap, window_heatmap, n_timepoints)
+tick_indices = np.linspace(0, n_timepoints-1, 11, dtype=int)  # 11 ticks 
+tick_labels = [f'{time_labels[i]:.1f}' for i in tick_indices]
+
+plt.xticks(tick_indices, tick_labels)
+plt.xlabel('Time from Reward Event (s)')
+plt.ylabel('Reward Event #')
+plt.title(f'Heatmap: Capacitive Value Across All Reward Events (2s window, n={n_rewards_event})')
+
+# Add colorbar
+cbar = plt.colorbar(im)
+cbar.set_label('Capacitive Value')
+
+# Add vertical line at t=0
+plt.axvline(x=n_timepoints//2, color='red', linestyle='--', alpha=0.8, linewidth=2)
+
+# Remove top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
 
 plt.tight_layout()
 plt.show()
