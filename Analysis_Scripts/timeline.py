@@ -4,9 +4,9 @@ import numpy as np
 import ast
 
 # File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272trial_log.csv'
-treadmill_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272treadmill.csv'
-capacitive_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272capacitive.csv'
+trial_log_path = r'Kaufman_Project/BM13/Session 15/beh/1752255098trial_log.csv'
+treadmill_path = r'Kaufman_Project/BM13/Session 15/beh/1752255099treadmill.csv'
+capacitive_path = r'Kaufman_Project/BM13/Session 15/beh/1752255099capacitive.csv'
 # output_folder = r"Kaufman_Project/BM14/Session 9/beh"
 # output_path = f"{output_folder}\\timeline.svg"
 
@@ -312,20 +312,21 @@ cap_event_windows_padded = np.array([
     for seg in cap_event_windows
 ])
 
-# Apply moving median filter (3-point window) to each row before averaging
-def apply_moving_median_3point(data):
-    """Apply 3-point moving median filter to 2D array along axis 1"""
+# Apply moving median filter (25-point window) to each row before averaging
+def apply_moving_median_25point(data):
+    """Apply 25-point moving median filter to 2D array along axis 1"""
     filtered = np.copy(data)
+    half_window = 12  # 12 points before + current + 12 points after = 25 total
+    
     for i in range(data.shape[0]):
         row = data[i, :]
-        # Use numpy's median with sliding window
-        for j in range(1, len(row) - 1):
-            window = row[j-1:j+2]
+        for j in range(half_window, len(row) - half_window):
+            window = row[j-half_window:j+half_window+1]
             if not np.isnan(window).any():
                 filtered[i, j] = np.median(window)
     return filtered
 
-cap_event_windows_filtered = apply_moving_median_3point(cap_event_windows_padded)
+cap_event_windows_filtered = apply_moving_median_25point(cap_event_windows_padded)
 
 # Create a common time axis centered at 0
 aligned_time_event = np.linspace(-window_event, window_event, max_event_len)
@@ -399,8 +400,8 @@ if 'probe_time' in trial_log_df.columns:
                 for seg in cap_probe_windows
             ])
             
-            # Apply moving median filter (3-point window) to probe capacitive data
-            cap_probe_windows_filtered = apply_moving_median_3point(cap_probe_windows_padded)
+            # Apply moving median filter (25-point window) to probe capacitive data
+            cap_probe_windows_filtered = apply_moving_median_25point(cap_probe_windows_padded)
             
             # --- Treadmill Speed aligned to probe events ---
             speed_probe_windows = []
