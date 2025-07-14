@@ -282,7 +282,8 @@ class Corridor:
         self.stop_texture = config["stop_texture"]
         self.probe_onset = config["probe_onset"]
         self.probe_duration = config["probe_duration"]
-        
+        self.probe_probability = config.get("probe_probability", 1.0)  # Default to 100% if not specified
+
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
         
@@ -563,8 +564,10 @@ class Corridor:
             
         #Conditional to make probe optional
         if self.base.cfg.get("probe", True):
-            # Schedule a task to change the wall textures temporarily after reverting
-            self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+            # Configurable chance of calling the probe function
+            if random.random() < self.probe_probability:
+                # Schedule a task to change the wall textures temporarily after reverting
+                self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
@@ -1187,7 +1190,7 @@ class MousePortal(ShowBase):
             arduino_serial=self.arduino_serial,  # Pass the shared instance
             messenger=self.messenger,
             test_mode=self.cfg.get("test_mode"),
-            test_csv_path= r'C:\Users\Sipe_Lab\MousePortal\Kaufman_Project\BM14\Session 1\beh\1750699918treadmill.csv'
+            test_csv_path= r'Kaufman_Project/BM14/Session 10/beh/1751650878treadmill.csv'
         )
 
         # Set up serial output to Arduino

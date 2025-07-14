@@ -23,12 +23,12 @@
     "probe": false,
     "probe_onset": 1.0,
     "probe_duration": 1.0,
-    "reward_time": 0.35,
+    "reward_time": 0.36,
     "puff_time": 0.1,
     "puff_duration": 700,
     "base_hallway_distribution": {
         "loc": 12,
-        "scale": 6
+        "scale": 8
     },
     "base_hallway_min_value": 5,
     "stay_zone_distribution": {

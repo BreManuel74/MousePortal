@@ -41,17 +41,17 @@
         "scale": 2
     },
     "manual_texture_change_distribution": {
-    "loc": 12,
-    "scale": 6
+    "loc": 60,
+    "scale": 10
     },
     "manual_texture_revert_distribution": {
-    "loc": 3,
+    "loc": 4,
     "scale": 1
     },
-    "manual_texture_revert_min_value": 1,
+    "manual_texture_revert_min_value": 2,
     "manual_texture_change_min_value": 2,
     "go_zone_min_value": 1,
     "puff_to_neutral_time": 3.0,
-    "reward_amount": 5,
+    "reward_amount": 3,
     "reward_file": "C:\\Users\\Sipe_Lab\\MousePortal\\Solenoid_Calibration\\solenoid_calibration_results.csv"
 }
