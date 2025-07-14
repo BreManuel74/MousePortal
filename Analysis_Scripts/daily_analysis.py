@@ -633,6 +633,30 @@ class SpeedAnalysis:
                 matched_puff_zone_times.append(prior_zones[-1])
         #print(f"DEBUG: matched_puff_zone_times for puffs {puff_times}: {matched_puff_zone_times}")
         return np.array(matched_puff_zone_times)
+    
+    def average_interpolated_speed(self):
+        """
+        Calculate the average of the interpolated treadmill speed for the session.
+        Returns:
+            float: The mean treadmill speed (NaN if no data).
+        """
+        return self.treadmill_interp.mean()
+
+    def count_rewards_per_20s_bin(self):
+        """
+        Count the number of rewards in each 20-second bin.
+        Returns:
+            pd.Series: Index is bin start time (seconds), values are reward counts.
+        """
+        # Get reward times as numeric values (drop NaN)
+        reward_times = pd.to_numeric(self.trial_log_df['reward_event'], errors='coerce').dropna()
+        # Assign each reward to a 20s bin
+        bins = (reward_times // 20).astype(int)
+        reward_counts = bins.value_counts().sort_index()
+        # Convert bin index to bin start time in seconds
+        reward_counts.index = reward_counts.index * 20
+        reward_counts = reward_counts.sort_index()
+        return reward_counts
 
 class LickMetricsAppender:
     def __init__(self, csv_path):
@@ -989,12 +1013,65 @@ class SpeedPlotter:
         ax.set_title("Puff-Based Speed Metrics Table by Quarter")
         return ax
 
+    @staticmethod
+    def plot_speed_percentage_and_rewards(speed_analysis, ax=None):
+        """
+        Plot average treadmill speed as a percentage of the session average (20s bins)
+        and overlay reward counts per 20s bin as a secondary y-axis.
+        """
+        avg_speed = speed_analysis.average_interpolated_speed()
+        percent_speed = (speed_analysis.treadmill_interp / avg_speed) * 100 if avg_speed != 0 else np.nan
+
+        # Group by 20-second bins
+        bins = (speed_analysis.treadmill_interp.index // 20).astype(int)
+        percent_speed_by_bin = pd.DataFrame({'bin': bins, 'percent_speed': percent_speed})
+        grouped = percent_speed_by_bin.groupby('bin')['percent_speed'].mean()
+        bin_times = grouped.index * 20
+
+        # Get reward counts in 20s bins and reindex to include all bins (fill missing with 0)
+        reward_counts_20s = speed_analysis.count_rewards_per_20s_bin().reindex(bin_times, fill_value=0)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(12, 5))
+        # Plot speed percentage
+        jitter = np.random.uniform(-0.1, 0.1, size=len(bin_times))  # Add jitter to x-axis for better visibility
+        bin_times = bin_times + jitter
+        ax.plot(bin_times, grouped.values, marker='o', color='green', linestyle='-', label='Avg Speed (% of session avg) per 20s', linewidth=3, markersize=8, alpha=0.9)
+        ax.axhline(100, color='black', linestyle='--', label='Session Average (100%)', linewidth=1)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Speed (% of session average)', color='green')
+        ax.set_title('Treadmill Speed (% of Avg) and Reward Count per 20s')
+        #ax.spines['top'].set_visible(False)
+        # ax.spines['right'].set_visible(False)
+        ax.tick_params(axis='y', labelcolor='green')
+
+        # Scale x and y axis to remove blank spaces
+        ax.set_xlim(bin_times.min(), bin_times.max())
+        ymin = grouped.values.min()
+        ymax = grouped.values.max()
+        yrange = ymax - ymin if ymax > ymin else 1
+        ax.set_ylim(ymin - 0.05 * yrange, ymax + 0.05 * yrange)
+
+        # Secondary y-axis for reward counts
+        ax2 = ax.twinx()
+        ax2.plot(bin_times, reward_counts_20s.values, color='purple', marker='s', linestyle='-', label='Reward Count (per 20s)', linewidth=3, markersize=8, alpha=0.7)
+        ax2.set_ylabel('Reward Count (per 20s)', color='purple')
+        ax2.tick_params(axis='y', labelcolor='purple')
+        ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        # Combine legends
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+
+        return ax, ax2
+
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM15/Session 13/beh/1752085114capacitive.csv'
-    csv_path = r'Progress_Reports/Algernon_log.csv'
+    trial_log_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272capacitive.csv'
+    csv_path = r'Progress_Reports/BM15_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
@@ -1003,6 +1080,8 @@ if __name__ == "__main__":
 
     # ---------------- SPEED ANALYSIS SECTION ---------------- 
     speed_analysis = SpeedAnalysis(trial_log_path, capacitive_path, treadmill_path)
+
+    avg_speed = speed_analysis.average_interpolated_speed()
 
     # Get session quarters for reward-based speed analysis
     quarters = analysis.get_session_quarters()
@@ -1242,6 +1321,8 @@ if __name__ == "__main__":
         'no_reward_licks_after',
         'n_no_reward_zones',
     ], ax=axs_tables[0])
+
+    SpeedPlotter.plot_speed_percentage_and_rewards(speed_analysis)
 
     plt.tight_layout()
     plt.show()
