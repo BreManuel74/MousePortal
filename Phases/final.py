@@ -282,6 +282,7 @@ class Corridor:
         self.stop_texture = config["stop_texture"]
         self.probe_onset = config["probe_onset"]
         self.probe_duration = config["probe_duration"]
+        self.stop_texture_probability = config.get("stop_texture_probability", 0.9)
         
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
@@ -417,14 +418,12 @@ class Corridor:
         Returns:
             Task: Continuation signal for the task manager.
         """
-        # Define a list of possible wall textures
-        wall_textures = [
-            self.go_texture,  # Texture 1
-            self.stop_texture   # Texture 2
-        ]
-        
-        # Randomly select a texture
-        selected_texture = random.choice(wall_textures)
+        # Define a list of possible wall textures with weighted probabilities
+        # Use configurable probability for stop_texture, remainder for go_texture
+        if random.random() < self.stop_texture_probability:
+            selected_texture = self.stop_texture
+        else:
+            selected_texture = self.go_texture
         
         # Append to numpy array
         self.texture_history = np.append(self.texture_history, str(selected_texture))

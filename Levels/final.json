@@ -24,6 +24,7 @@
     "reward_time": 0.25,
     "puff_time": 0.1,
     "puff_duration": 700,
+    "stop_texture_probability": 0.9,
     "base_hallway_distribution": {
         "loc": 25,
         "scale": 5
