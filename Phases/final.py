@@ -418,14 +418,12 @@ class Corridor:
         Returns:
             Task: Continuation signal for the task manager.
         """
-        # Define a list of possible wall textures
-        wall_textures = [
-            self.go_texture,  # Texture 1
-            self.stop_texture   # Texture 2
-        ]
-        
-        # Randomly select a texture
-        selected_texture = random.choice(wall_textures)
+        # Define a list of possible wall textures with weighted probabilities
+        # Use configurable probability for stop_texture, remainder for go_texture
+        if random.random() < self.stop_texture_probability:
+            selected_texture = self.stop_texture
+        else:
+            selected_texture = self.go_texture
         
         # Append to numpy array
         self.texture_history = np.append(self.texture_history, str(selected_texture))
