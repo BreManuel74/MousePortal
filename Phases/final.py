@@ -282,6 +282,7 @@ class Corridor:
         self.stop_texture = config["stop_texture"]
         self.probe_onset = config["probe_onset"]
         self.probe_duration = config["probe_duration"]
+        self.probe_probability = config.get("probe_probability", 1.0)  # Default to 100% if not specified
         
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
@@ -560,8 +561,12 @@ class Corridor:
         for right_node in self.right_segments:
             self.apply_texture(right_node, self.right_wall_texture)
         
-        # Schedule a task to change the wall textures temporarily after reverting
-        self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
+        #Conditional to make probe optional
+        if self.base.cfg.get("probe", True):
+            # Configurable chance of calling the probe function
+            if random.random() < self.probe_probability:
+                # Schedule a task to change the wall textures temporarily after reverting
+                self.base.doMethodLaterStopwatch(self.probe_onset, self.change_wall_textures_temporarily_once, "ChangeWallTexturesTemporarilyOnce")
         
         # Return Task.done if task is None
         return Task.done if task is None else task.done
