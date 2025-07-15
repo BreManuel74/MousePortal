@@ -605,8 +605,8 @@ class SpeedAnalysis:
         avg_no_puff_speed_before = np.nanmean(no_puff_speed_before) if no_puff_speed_before else np.nan
         avg_no_puff_speed_after = np.nanmean(no_puff_speed_after) if no_puff_speed_after else np.nan
 
-        ratio_speed_puffs = ((avg_no_puff_speed_before - avg_no_puff_speed_after)/ 2
-            if avg_no_puff_speed_after and avg_no_puff_speed_after != 0 else np.nan
+        ratio_speed_puffs = ((avg_speed_before_puff - avg_speed_before_puff_zone) / 2
+            if avg_speed_before_puff_zone and avg_speed_before_puff_zone != 0 else np.nan
         )
 
         return {
@@ -997,13 +997,28 @@ class SpeedPlotter:
         table_data = df_speed_quarters[puff_columns].copy()
         table_data = table_data.round(2)
         table_data = table_data.fillna(0)
+        
+        # Create clean column labels with simplified names
+        clean_column_labels = []
+        for col in puff_columns:
+            if col == 'Quarter':
+                clean_column_labels.append(col)
+            elif col == 'average_speed_before_puff_puff':
+                clean_column_labels.append('average_speed_before_puff')
+            elif col == 'average_speed_before_puff_zone_puff':
+                clean_column_labels.append('average_speed_before_puff_zone')
+            elif col == 'average_speed_after_puff_puff':
+                clean_column_labels.append('average_speed_after_puff')
+            else:
+                # Remove "_puff" suffix for other columns
+                clean_column_labels.append(col.replace('_puff', ''))
 
         if ax is None:
             fig, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
         ax.axis('off')
         mpl_table = ax.table(
             cellText=table_data.values,
-            colLabels=table_data.columns,
+            colLabels=clean_column_labels,
             loc='center',
             cellLoc='center'
         )
@@ -1068,10 +1083,10 @@ class SpeedPlotter:
 
 if __name__ == "__main__":
     # File paths
-    trial_log_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM15/Session 15/beh/1752259272capacitive.csv'
-    csv_path = r'Progress_Reports/BM15_log.csv'
+    trial_log_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766trial_log.csv'
+    treadmill_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766treadmill.csv'
+    capacitive_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766capacitive.csv'
+    csv_path = r'Progress_Reports/BM13_log.csv'
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
