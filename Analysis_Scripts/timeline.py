@@ -2,13 +2,63 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import ast
+import os
+from tkinter import filedialog
+import tkinter as tk
 
-# File paths (update these if your files are in a different location)
-trial_log_path = r'Kaufman_Project/BM15/Session 17/beh/1752604904trial_log.csv'
-treadmill_path = r'Kaufman_Project/BM15/Session 17/beh/1752604904treadmill.csv'
-capacitive_path = r'Kaufman_Project/BM15/Session 17/beh/1752604904capacitive.csv'
-# output_folder = r"Kaufman_Project/BM14/Session 9/beh"
-# output_path = f"{output_folder}\\timeline.svg"
+# Hide the main tkinter window
+root = tk.Tk()
+root.withdraw()
+
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to the main MousePortal directory
+initial_dir = os.path.dirname(script_dir)
+
+# Browse for the folder containing your data files
+folder_path = filedialog.askdirectory(
+    title="Select folder containing behavioral data files",
+    initialdir=initial_dir
+)
+
+if not folder_path:
+    print("No folder selected. Exiting...")
+    exit()
+
+# Find files containing the required keywords
+trial_log_files = [f for f in os.listdir(folder_path) if 'trial_log.csv' in f]
+treadmill_files = [f for f in os.listdir(folder_path) if 'treadmill.csv' in f]
+capacitive_files = [f for f in os.listdir(folder_path) if 'capacitive.csv' in f]
+
+# Check if all three types of files are present
+missing_types = []
+if not trial_log_files:
+    missing_types.append("trial_log.csv")
+if not treadmill_files:
+    missing_types.append("treadmill.csv")
+if not capacitive_files:
+    missing_types.append("capacitive.csv")
+
+if missing_types:
+    print(f"Warning: Missing file types in selected folder: {missing_types}")
+    print("Please ensure all three file types are present:")
+    print("  - A file containing 'trial_log.csv'")
+    print("  - A file containing 'treadmill.csv'")
+    print("  - A file containing 'capacitive.csv'")
+    exit()
+
+# Use the first file found for each type
+trial_log_path = os.path.join(folder_path, trial_log_files[0])
+treadmill_path = os.path.join(folder_path, treadmill_files[0])
+capacitive_path = os.path.join(folder_path, capacitive_files[0])
+
+print(f"Loading files:")
+print(f"  - {os.path.basename(trial_log_path)}")
+print(f"  - {os.path.basename(treadmill_path)}")
+print(f"  - {os.path.basename(capacitive_path)}")
+
+# output_folder = folder_path
+# output_path = os.path.join(output_folder, "timeline.svg")
 
 # Read the CSV files into pandas DataFrames
 trial_log_df = pd.read_csv(trial_log_path, engine='python')
@@ -312,11 +362,11 @@ cap_event_windows_padded = np.array([
     for seg in cap_event_windows
 ])
 
-# Apply moving median filter (21-point window) to each row before averaging
-def apply_moving_median_21point(data):
-    """Apply 21-point moving median filter to 2D array along axis 1"""
+# Apply moving median filter (15-point window) to each row before averaging
+def apply_moving_median_15point(data):
+    """Apply 15-point moving median filter to 2D array along axis 1"""
     filtered = np.copy(data)
-    half_window = 10  # 10 points before + current + 10 points after = 21 total
+    half_window = 7  # 7 points before + current + 7 points after = 15 total
     
     for i in range(data.shape[0]):
         row = data[i, :]
@@ -326,7 +376,7 @@ def apply_moving_median_21point(data):
                 filtered[i, j] = np.median(window)
     return filtered
 
-cap_event_windows_filtered = apply_moving_median_21point(cap_event_windows_padded)
+cap_event_windows_filtered = apply_moving_median_15point(cap_event_windows_padded)
 
 # Create a common time axis centered at 0
 aligned_time_event = np.linspace(-window_event, window_event, max_event_len)
@@ -401,7 +451,7 @@ if 'probe_time' in trial_log_df.columns:
             ])
             
             # Apply moving median filter (21-point window) to probe capacitive data
-            cap_probe_windows_filtered = apply_moving_median_21point(cap_probe_windows_padded)
+            cap_probe_windows_filtered = apply_moving_median_15point(cap_probe_windows_padded)
             
             # --- Treadmill Speed aligned to probe events ---
             speed_probe_windows = []
@@ -651,7 +701,7 @@ if 'probe_time' in trial_log_df.columns and len(unpaired_revert_times) > 0 and p
         ])
         
         # Apply moving median filter (21-point window) to simulated probe capacitive data
-        cap_sim_windows_filtered = apply_moving_median_21point(cap_sim_windows_padded)
+        cap_sim_windows_filtered = apply_moving_median_15point(cap_sim_windows_padded)
         
         # --- Treadmill Speed aligned to simulated probe events ---
         speed_sim_windows = []
@@ -721,5 +771,146 @@ elif len(unpaired_revert_times) > 0:
 else:
     # No unpaired revert times available
     pass
+
+#plt.show()
+
+# --- Analysis of Treadmill Speed aligned to Puff Zone Entry Times ---
+
+# Extract all punish_texture_change_times (puff zone entry times) from all trials
+puff_zone_times_flat = punish_texture_change_time.flatten()
+puff_zone_times_flat = pd.to_numeric(puff_zone_times_flat, errors='coerce')
+puff_zone_times_flat = puff_zone_times_flat[~np.isnan(puff_zone_times_flat)]
+
+if len(puff_zone_times_flat) > 0:
+    window_puff = 5  # seconds before and after puff zone entry
+    
+    # Get interpolated speed as numpy array (already calculated above)
+    speed_val = treadmill_interp.values
+    cap_time = capacitive_df['elapsed_time'].values
+    
+    # Extract speed windows around each puff zone entry time
+    speed_puff_windows = []
+    for puff_time in puff_zone_times_flat:
+        mask = (cap_time >= puff_time - window_puff) & (cap_time <= puff_time + window_puff)
+        speed_segment = speed_val[mask]
+        speed_puff_windows.append(speed_segment)
+    
+    # Pad all segments to the same length (max found)
+    if speed_puff_windows and max(len(seg) for seg in speed_puff_windows) > 0:
+        max_puff_len = max(len(seg) for seg in speed_puff_windows)
+        speed_puff_windows_padded = np.array([
+            np.pad(seg.astype(float), (0, max_puff_len - len(seg)), constant_values=np.nan)
+            for seg in speed_puff_windows
+        ])
+        
+        # Create a common time axis centered at 0 (puff zone entry at t=0)
+        aligned_time_puff = np.linspace(-window_puff, window_puff, max_puff_len)
+        
+        # Calculate mean and SEM
+        n_puff_events = speed_puff_windows_padded.shape[0]
+        mean_speed_puff = np.nanmean(speed_puff_windows_padded, axis=0)
+        sem_speed_puff = np.nanstd(speed_puff_windows_padded, axis=0) / np.sqrt(np.sum(~np.isnan(speed_puff_windows_padded), axis=0))
+        
+        # --- Also analyze capacitive values aligned to puff events ---
+        
+        # Check if puff_event column exists
+        puff_event_capacitive_data = None
+        if 'puff_event' in trial_log_df.columns:
+            puff_event_times = pd.to_numeric(trial_log_df['puff_event'], errors='coerce').dropna()
+            puff_event_times = puff_event_times[~np.isnan(puff_event_times)]
+            
+            if len(puff_event_times) > 0:
+                # Ensure puff_event_times is a numpy array of floats
+                puff_event_times = np.array(puff_event_times, dtype=float)
+                
+                # Extract capacitive windows around each puff event time
+                cap_puff_event_windows = []
+                for puff_event_time in puff_event_times:
+                    mask = (cap_time >= puff_event_time - window_puff) & (cap_time <= puff_event_time + window_puff)
+                    cap_segment = cap_val[mask]
+                    cap_puff_event_windows.append(cap_segment)
+                
+                # Pad all segments to the same length (max found)
+                if cap_puff_event_windows and max(len(seg) for seg in cap_puff_event_windows) > 0:
+                    max_puff_cap_len = max(len(seg) for seg in cap_puff_event_windows)
+                    cap_puff_event_windows_padded = np.array([
+                        np.pad(seg.astype(float), (0, max_puff_cap_len - len(seg)), constant_values=np.nan)
+                        for seg in cap_puff_event_windows
+                    ])
+                    
+                    # Apply moving median filter (21-point window) to puff event capacitive data
+                    cap_puff_event_windows_filtered = apply_moving_median_15point(cap_puff_event_windows_padded)
+                    
+                    # Create a common time axis centered at 0 for capacitive data
+                    aligned_time_puff_cap = np.linspace(-window_puff, window_puff, max_puff_cap_len)
+                    
+                    # Calculate mean and SEM for capacitive data
+                    n_puff_event_cap = cap_puff_event_windows_filtered.shape[0]
+                    mean_cap_puff_event = np.nanmean(cap_puff_event_windows_filtered, axis=0)
+                    sem_cap_puff_event = np.nanstd(cap_puff_event_windows_filtered, axis=0) / np.sqrt(np.sum(~np.isnan(cap_puff_event_windows_filtered), axis=0))
+                    
+                    puff_event_capacitive_data = {
+                        'aligned_time': aligned_time_puff_cap,
+                        'mean_values': mean_cap_puff_event,
+                        'sem_values': sem_cap_puff_event,
+                        'n_events': n_puff_event_cap
+                    }
+        
+        # Create subplot figure
+        fig, axs = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+        
+        # --- Plot 1: Treadmill Speed aligned to puff zone entry times ---
+        axs[0].plot(aligned_time_puff, mean_speed_puff, color='red', linewidth=2, label=f'Mean Speed (n={n_puff_events})')
+        axs[0].fill_between(aligned_time_puff, mean_speed_puff - sem_speed_puff, mean_speed_puff + sem_speed_puff, color='red', alpha=0.2, label='SEM')
+        axs[0].axvline(0, color='black', linestyle='--', alpha=0.8, linewidth=2, label='Puff Zone Entry (t=0)')
+        axs[0].set_ylabel('Treadmill Speed (interpolated)')
+        axs[0].set_title(f'Average Treadmill Speed Aligned to Puff Zone Entry Times (n={n_puff_events})')
+        axs[0].legend()
+        axs[0].set_xlim(-5, 5)
+        axs[0].spines['top'].set_visible(False)
+        axs[0].spines['right'].set_visible(False)
+        axs[0].tick_params(axis='both', direction='out')
+        
+        # --- Plot 2: Capacitive Value aligned to puff events ---
+        if puff_event_capacitive_data is not None:
+            axs[1].plot(puff_event_capacitive_data['aligned_time'], puff_event_capacitive_data['mean_values'], 
+                       color='blue', linewidth=2, label=f'Mean Capacitive (n={puff_event_capacitive_data["n_events"]})')
+            axs[1].fill_between(puff_event_capacitive_data['aligned_time'], 
+                               puff_event_capacitive_data['mean_values'] - puff_event_capacitive_data['sem_values'], 
+                               puff_event_capacitive_data['mean_values'] + puff_event_capacitive_data['sem_values'], 
+                               color='blue', alpha=0.2, label='SEM')
+            axs[1].axvline(0, color='black', linestyle='--', alpha=0.8, linewidth=2, label='Puff Event (t=0)')
+            axs[1].set_ylabel('Capacitive Value (15-pt smoothed)')
+            axs[1].set_title(f'Average Capacitive Value Aligned to Puff Events (n={puff_event_capacitive_data["n_events"]})')
+            axs[1].legend()
+            axs[1].set_ylim(bottom=0)
+        else:
+            axs[1].text(0.5, 0.5, 'No puff event data available\nfor capacitive analysis', 
+                       horizontalalignment='center', verticalalignment='center', 
+                       transform=axs[1].transAxes, fontsize=12)
+            axs[1].set_ylabel('Capacitive Value')
+            axs[1].set_title('Capacitive Value Aligned to Puff Events (No Data)')
+        
+        axs[1].set_xlabel('Time from Puff Event (s)')
+        axs[1].set_xlim(-5, 5)
+        axs[1].set_xticks(np.arange(-5, 6, 1))
+        axs[1].spines['top'].set_visible(False)
+        axs[1].spines['right'].set_visible(False)
+        axs[1].tick_params(axis='both', direction='out')
+        
+        plt.tight_layout()
+        #plt.show()
+        
+        # print(f"Puff Zone Analysis Complete:")
+        # print(f"- Total puff zone entry events: {n_puff_events}")
+        # print(f"- Time window: ±{window_puff} seconds around puff zone entry")
+        # print(f"- Data points per trace: {max_puff_len}")
+        
+    else:
+        print("Warning: No valid speed data found around puff zone entry times.")
+        print("This could be due to puff zone times being too close to data boundaries.")
+else:
+    print("Warning: No valid puff zone entry times found in punish_texture_change_time data.")
+    print("Check if the punish_texture_change_time data contains valid numeric values.")
 
 plt.show()

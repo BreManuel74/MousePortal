@@ -4,6 +4,9 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from scipy.stats import norm
+import tkinter as tk
+from tkinter import filedialog
 
 class LickAnalysis:
     def __init__(self, trial_log_path, capacitive_path):
@@ -718,6 +721,17 @@ class DPrimeAppender:
         df.to_csv(self.csv_path, index=False)
         #print(f"Updated row {row_index} with sensitivity values in {os.path.basename(self.csv_path)}.")
 
+    def append_dprime_values(self, row_index, dprime_values):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'DPrime_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            value = np.nan if pd.isna(dprime_values[i]) else round(dprime_values[i], 3)
+            df.at[row_index, col] = value
+        df.to_csv(self.csv_path, index=False)
+        #print(f"Updated row {row_index} with d-prime values in {os.path.basename(self.csv_path)}.")
+
 class SpeedMetricsAppender:
     def __init__(self, csv_path):
         self.csv_path = csv_path
@@ -1082,11 +1096,71 @@ class SpeedPlotter:
         return ax, ax2
 
 if __name__ == "__main__":
-    # File paths
-    trial_log_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766trial_log.csv'
-    treadmill_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766treadmill.csv'
-    capacitive_path = r'Kaufman_Project/BM13/Session 17/beh/1752598766capacitive.csv'
-    csv_path = r'Progress_Reports/BM13_log.csv'
+    
+    # Hide the main tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up one level to the main MousePortal directory
+    initial_dir = os.path.dirname(script_dir)
+    
+    # Browse for the folder containing your data files
+    folder_path = filedialog.askdirectory(
+        title="Select folder containing behavioral data files",
+        initialdir=initial_dir
+    )
+    
+    if not folder_path:
+        print("No folder selected. Exiting...")
+        exit()
+    
+    # Find files containing the required keywords
+    trial_log_files = [f for f in os.listdir(folder_path) if 'trial_log.csv' in f]
+    treadmill_files = [f for f in os.listdir(folder_path) if 'treadmill.csv' in f]
+    capacitive_files = [f for f in os.listdir(folder_path) if 'capacitive.csv' in f]
+    
+    # Check if all three types of files are present
+    missing_types = []
+    if not trial_log_files:
+        missing_types.append("trial_log.csv")
+    if not treadmill_files:
+        missing_types.append("treadmill.csv")
+    if not capacitive_files:
+        missing_types.append("capacitive.csv")
+    
+    if missing_types:
+        print(f"Warning: Missing file types in selected folder: {missing_types}")
+        print("Please ensure all three file types are present:")
+        print("  - A file containing 'trial_log.csv'")
+        print("  - A file containing 'treadmill.csv'")
+        print("  - A file containing 'capacitive.csv'")
+        exit()
+    
+    # Use the first file found for each type
+    trial_log_path = os.path.join(folder_path, trial_log_files[0])
+    treadmill_path = os.path.join(folder_path, treadmill_files[0])
+    capacitive_path = os.path.join(folder_path, capacitive_files[0])
+    
+    # print(f"Loading files:")
+    # print(f"  - {os.path.basename(trial_log_path)}")
+    # print(f"  - {os.path.basename(treadmill_path)}")
+    # print(f"  - {os.path.basename(capacitive_path)}")
+    
+    # For the CSV path, we'll need to ask the user to select the progress reports file
+    csv_path = filedialog.askopenfilename(
+        title="Select the progress reports CSV file",
+        initialdir=os.path.join(initial_dir, "Progress_Reports"),
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+    )
+    
+    if not csv_path:
+        print("No progress reports CSV file selected. Exiting...")
+        exit()
+    
+    # print(f"Using progress reports file: {os.path.basename(csv_path)}")
+    # print("---")
 
     # Prepare the analysis objects
     analysis = LickAnalysis(trial_log_path, capacitive_path)
@@ -1141,18 +1215,30 @@ if __name__ == "__main__":
         )
         metrics_quarter['Quarter'] = f'Q{i+1}'
         metrics_quarter[f'Q{i+1}_false_alarms'] = len(q['puff_times'])
-        puff_zones_in_quarter = punish_zone_times_flat[(punish_zone_times_flat >= start) & (punish_zone_times_flat < end)]
-        metrics_quarter[f'Q{i+1}_puff_zones'] = len(puff_zones_in_quarter)
-        metrics_quarter[f'Q{i+1}_correct_rejections'] = len(puff_zones_in_quarter) - len(q['puff_times'])
+        
+        # Count unique zones associated with puffs assigned to this quarter
+        unique_zones_with_puffs = len(set(q['matched_puff_zone_times'])) if len(q['matched_puff_zone_times']) > 0 else 0
+        
+        # For correct rejections, we need zones that started in this quarter but had no puffs assigned to this quarter
+        # Get all zones that contributed puffs to this quarter
+        zones_with_puffs_this_quarter = set(q['matched_puff_zone_times']) if len(q['matched_puff_zone_times']) > 0 else set()
+        
+        # Count zones in this quarter that didn't contribute any puffs to this quarter
+        zones_in_quarter_without_puffs = [z for z in q['puff_zones'] if z not in zones_with_puffs_this_quarter]
+        
+        metrics_quarter[f'Q{i+1}_puff_zones'] = len(q['puff_zones'])
+        metrics_quarter[f'Q{i+1}_correct_rejections'] = len(zones_in_quarter_without_puffs)
         puff_quarter_data.append(metrics_quarter)
-    #     print(f"Quarter {i+1} ({start:.2f} to {end:.2f}): Puff times: {q['puff_times']}")
-    #     print(f"  Avg speed before puff: {metrics_quarter['average_speed_before_puff']}")
-    #     print(f"  Avg speed before puff zone: {metrics_quarter['average_speed_before_puff_zone']}")
-    #     print(f"  Avg speed after puff: {metrics_quarter['average_speed_after_puff']}")
-    #     print(f"  No-puff zones present in this quarter (speed):")
-    #     print(f"    Avg speed 2s before zone: {metrics_quarter['no_puff_speed_before']}")
-    #     print(f"    Avg speed 2s after zone: {metrics_quarter['no_puff_speed_after']}")
-    #     print(metrics_quarter.get('n_no_puff_zones', 0), "no-puff zones in this quarter")
+        # print(f"Quarter {i+1} ({start:.2f} to {end:.2f}):")
+        # print(f"  Puff zones that started in quarter: {len(q['puff_zones'])}")
+        # print(f"  Puff times assigned to quarter (false alarms): {len(q['puff_times'])}")
+        # print(f"  Unique zones with puffs in this quarter: {unique_zones_with_puffs}")
+        # print(f"  Zones in quarter without puffs (correct rejections): {len(zones_in_quarter_without_puffs)}")
+        # print(f"  Puff zones that started in quarter: {q['puff_zones']}")
+        # print(f"  Puff times assigned to quarter: {q['puff_times']}")
+        # print(f"  Zone times for assigned puffs: {q['matched_puff_zone_times']}")
+        # print(f"  Zones without puffs: {zones_in_quarter_without_puffs}")
+        # print("---")
 
     # Convert puff quarter data to DataFrame
     df_puff_quarters = pd.DataFrame(puff_quarter_data)
@@ -1289,6 +1375,62 @@ if __name__ == "__main__":
         )
         sensitivity_values[-1] = round(sensitivity_values[-1], 2) if not pd.isna(sensitivity_values[-1]) else np.nan
         #print(f"Quarter {i+1} sensitivity: {sensitivity_values[-1]}")
+
+    # D-prime calculation
+    def calculate_dprime(hit_rate, false_alarm_rate, signal_trials, noise_trials):
+        """
+        Calculate d-prime from hit rate and false alarm rate.
+        Applies correction for extreme values (0 or 1) to avoid infinite z-scores.
+        """
+        # Apply correction for extreme values
+        if hit_rate == 0:
+            hit_rate = 0.5 / signal_trials
+        elif hit_rate == 1:
+            hit_rate = 1 - (0.5 / signal_trials)
+            
+        if false_alarm_rate == 0:
+            false_alarm_rate = 0.5 / noise_trials
+        elif false_alarm_rate == 1:
+            false_alarm_rate = 1 - (0.5 / noise_trials)
+        
+        # Calculate z-scores
+        z_hit = norm.ppf(hit_rate)
+        z_fa = norm.ppf(false_alarm_rate)
+        
+        return z_hit - z_fa
+
+    dprime_values = []
+    for i in range(4):
+        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
+        misses_val = df_quarters[f'Q{i+1}_misses'].iloc[i]
+        false_alarms_val = df_puff_quarters[f'Q{i+1}_false_alarms'].iloc[i]
+        correct_rejections_val = df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i]
+        
+        # Check if we have valid data for both signal and noise trials
+        if (pd.isna(hits_val) or pd.isna(misses_val) or 
+            pd.isna(false_alarms_val) or pd.isna(correct_rejections_val)):
+            dprime_values.append(np.nan)
+            continue
+            
+        # Calculate total trials for each condition
+        signal_trials = hits_val + misses_val
+        noise_trials = false_alarms_val + correct_rejections_val
+        
+        if signal_trials == 0 or noise_trials == 0:
+            dprime_values.append(np.nan)
+            continue
+            
+        # Calculate rates
+        hit_rate = hits_val / signal_trials
+        false_alarm_rate = false_alarms_val / noise_trials
+        
+        try:
+            dprime = calculate_dprime(hit_rate, false_alarm_rate, signal_trials, noise_trials)
+            dprime_values.append(round(dprime, 3))
+            #print(f"Quarter {i+1} d-prime: {dprime:.3f} (HR: {hit_rate:.3f}, FAR: {false_alarm_rate:.3f})")
+        except:
+            dprime_values.append(np.nan)
+            #print(f"Quarter {i+1} d-prime: Could not calculate")
               
               
               
@@ -1402,6 +1544,7 @@ if __name__ == "__main__":
     #dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     #dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
     dprime_appender.append_sensitivity_values(row_index, sensitivity_values)
+    dprime_appender.append_dprime_values(row_index, dprime_values)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
     session_appender = SessionLengthAppender(csv_path)
