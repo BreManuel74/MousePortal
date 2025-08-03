@@ -721,6 +721,28 @@ class DPrimeAppender:
         df.to_csv(self.csv_path, index=False)
         #print(f"Updated row {row_index} with sensitivity values in {os.path.basename(self.csv_path)}.")
 
+    def append_specificity_values(self, row_index, specificity_values):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'Specificity_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            value = np.nan if pd.isna(specificity_values[i]) else round(specificity_values[i], 2)
+            df.at[row_index, col] = value
+        df.to_csv(self.csv_path, index=False)
+        #print(f"Updated row {row_index} with specificity values in {os.path.basename(self.csv_path)}.")
+
+    def append_accuracy_values(self, row_index, accuracy_values):
+        df = pd.read_csv(self.csv_path)
+        for i in range(4):
+            col = f'Accuracy_Q{i+1}'
+            if col not in df.columns:
+                df[col] = np.nan
+            value = np.nan if pd.isna(accuracy_values[i]) else round(accuracy_values[i], 2)
+            df.at[row_index, col] = value
+        df.to_csv(self.csv_path, index=False)
+        #print(f"Updated row {row_index} with accuracy values in {os.path.basename(self.csv_path)}.")
+
     def append_dprime_values(self, row_index, dprime_values):
         df = pd.read_csv(self.csv_path)
         for i in range(4):
@@ -1376,6 +1398,34 @@ if __name__ == "__main__":
         sensitivity_values[-1] = round(sensitivity_values[-1], 2) if not pd.isna(sensitivity_values[-1]) else np.nan
         #print(f"Quarter {i+1} sensitivity: {sensitivity_values[-1]}")
 
+    #specificity calculation
+    specificity_values = []
+    for i in range(4):
+        false_alarms_val = df_puff_quarters[f'Q{i+1}_false_alarms'].iloc[i]
+        correct_rejections_val = df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i]
+        specificity_values.append(
+            correct_rejections_val / (correct_rejections_val + false_alarms_val) if (correct_rejections_val + false_alarms_val) > 0 else np.nan
+        )
+        specificity_values[-1] = round(specificity_values[-1], 2) if not pd.isna(specificity_values[-1]) else np.nan
+        #print(f"Quarter {i+1} specificity: {specificity_values[-1]}")
+
+    #accuracy calculation
+    accuracy_values = []
+    for i in range(4):
+        hits_val = df_quarters[f'Q{i+1}_hits'].iloc[i]
+        correct_rejections_val = df_puff_quarters[f'Q{i+1}_correct_rejections'].iloc[i]
+        reward_zones_val = df_quarters[f'Q{i+1}_reward_zones'].iloc[i]
+        puff_zones_val = df_puff_quarters[f'Q{i+1}_puff_zones'].iloc[i]
+        
+        total_correct = (hits_val if not pd.isna(hits_val) else 0) + (correct_rejections_val if not pd.isna(correct_rejections_val) else 0)
+        total_zones = (reward_zones_val if not pd.isna(reward_zones_val) else 0) + (puff_zones_val if not pd.isna(puff_zones_val) else 0)
+        
+        accuracy_values.append(
+            total_correct / total_zones if total_zones > 0 else np.nan
+        )
+        accuracy_values[-1] = round(accuracy_values[-1], 2) if not pd.isna(accuracy_values[-1]) else np.nan
+        #print(f"Quarter {i+1} accuracy: {accuracy_values[-1]} (correct: {total_correct}, total zones: {total_zones})")
+
     # D-prime calculation
     def calculate_dprime(hit_rate, false_alarm_rate, signal_trials, noise_trials):
         """
@@ -1544,6 +1594,8 @@ if __name__ == "__main__":
     #dprime_appender.append_hits_to_misses_ratios(row_index, hits_to_misses_ratios)
     #dprime_appender.append_correct_rejections_to_false_alarms_ratios(row_index, correct_rejections_to_false_alarms_ratios)
     dprime_appender.append_sensitivity_values(row_index, sensitivity_values)
+    dprime_appender.append_specificity_values(row_index, specificity_values)
+    dprime_appender.append_accuracy_values(row_index, accuracy_values)
     dprime_appender.append_dprime_values(row_index, dprime_values)
     trial_appender = TrialNumberAppender(csv_path)
     trial_appender.append_trial_number(row_index, n_trials)
