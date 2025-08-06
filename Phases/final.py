@@ -283,6 +283,7 @@ class Corridor:
         self.probe_onset = config["probe_onset"]
         self.probe_duration = config["probe_duration"]
         self.probe_probability = config.get("probe_probability", 1.0)  # Default to 100% if not specified
+        self.stop_texture_probability = config.get("stop_texture_probability", 0.5)  # Default to 50% if not specified
         
         # Create a parent node for all corridor segments.
         self.parent: NodePath = base.render.attachNewNode("corridor")
@@ -654,7 +655,7 @@ class SerialInputManager(DirectObject.DirectObject):
     """
     def __init__(self, teensy_port: str, teensy_baudrate: int = 57600, 
                  arduino_serial: serial.Serial = None, 
-                 messenger: DirectObject = None, test_mode: bool = False) -> None:
+                 messenger: DirectObject = None, test_mode: bool = False, test_csv_path: str = None) -> None:
         self.teensy_port = teensy_port
         self.teensy_baudrate = teensy_baudrate
         self.arduino_serial = arduino_serial  # Use the shared instance
@@ -667,11 +668,11 @@ class SerialInputManager(DirectObject.DirectObject):
         # Initialize Teensy connection
         if self.test_mode:
             try:
-                self.test_file = open('test.csv', 'r')
+                self.test_file = open(test_csv_path, 'r')
                 self.test_reader = csv.reader(self.test_file)
                 next(self.test_reader)  # Skip header
             except Exception as e:
-                print(f"Failed to open test.csv: {e}")
+                print(f"Failed to open {test_csv_path}: {e}")
                 raise
         else:
             try:
@@ -697,12 +698,14 @@ class SerialInputManager(DirectObject.DirectObject):
         if self.test_mode:
             # Read data from the test CSV file
             try:
-                line = next(self.test_reader)  # Get the next line from the CSV reader
+                line = next(self.test_reader)
+                #print("Test mode line:", line)  # <-- Add this
                 if line:
-                    # Parse the line as if it were from the Teensy
                     data = self._parse_line(','.join(line))
+                    #print("Parsed data:", data)  # <-- Add this
                     if data:
                         self.messenger.send("readSerial", [data])
+                return Task.cont
             except StopIteration:
                 # End of the CSV file; stop the task
                 print("End of test.csv reached.")
@@ -1184,7 +1187,8 @@ class MousePortal(ShowBase):
             teensy_baudrate=self.cfg["teensy_baudrate"],
             arduino_serial=self.arduino_serial,  # Pass the shared instance
             messenger=self.messenger,
-            test_mode=self.cfg.get("test_mode", False)
+            test_mode=self.cfg.get("test_mode", False),
+            test_csv_path= r'Kaufman_Project/BM15/Session 28/beh/1754413096treadmill.csv'
         )
 
         # Set up serial output to Arduino

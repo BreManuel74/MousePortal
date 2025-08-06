@@ -100,8 +100,8 @@ def main():
     arduino_port = "COM7"  # Replace with your Arduino's port
     baud_rate = 115200
     r2_threshold = 0.9
-    ndt = 3
-    num_reps = 20
+    ndt = 4  # Number of solenoid opening times to test
+    num_reps = 30
     script_dir = os.path.dirname(os.path.abspath(__file__))
     file_name = "solenoid_calibration_results.csv"
     file_path = os.path.join(script_dir, file_name)

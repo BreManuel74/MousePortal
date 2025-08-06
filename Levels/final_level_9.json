@@ -19,30 +19,30 @@
     "go_texture": "assets/punish_mean100.jpg", 
     "neutral_stim_1": "assets/grating_mean100.jpg",
     "stop_texture": "assets/reward_mean100.jpg",
-    "stop_texture_probability": 0.88,
-    "test_mode": false,
+    "stop_texture_probability": 0.70,
+    "test_mode": true,
     "probe": true,
     "probe_onset": 1.0,
     "probe_duration": 1.0,
     "probe_probability": 0.50,
-    "reward_time": 0.373,
-    "puff_time": 0.43,
+    "reward_time": 0.38,
+    "puff_time": 0.8,
     "puff_duration": 700,
     "base_hallway_distribution": {
-        "loc": 14,
-        "scale": 6
+        "loc": 16,
+        "scale": 7
     },
     "base_hallway_min_value": 5,
     "stay_zone_distribution": {
         "loc": 5,
         "scale": 1
     },
-    "stay_zone_min_value": 3,
+    "stay_zone_min_value": 2,
     "go_zone_distribution": {
         "loc": 7,
         "scale": 2
     },
-    "go_zone_min_value": 5,
+    "go_zone_min_value": 2,
     "puff_to_neutral_time": 3.0,
     "reward_amount": 3,
     "reward_file": "C:\\Users\\Sipe_Lab\\MousePortal\\Solenoid_Calibration\\solenoid_calibration_results.csv"
