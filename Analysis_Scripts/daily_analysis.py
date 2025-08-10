@@ -396,6 +396,24 @@ class SpeedAnalysis:
             puff_delays_q = puff_times_q - matched_puff_zone_times_q
             # Puff zones in this quarter
             puff_zones_in_quarter = punish_zone_times_flat[(punish_zone_times_flat >= start) & (punish_zone_times_flat < end)]
+
+            # Only keep the first puff per puff zone
+
+            if len(puff_times_q) > 0:
+                # Create a DataFrame for easy grouping
+                df_puffs = pd.DataFrame({
+                    'puff_time': puff_times_q,
+                    'zone_time': matched_puff_zone_times_q,
+                    'delay': puff_delays_q
+                })
+                # Sort by puff_time to ensure first is earliest
+                df_puffs = df_puffs.sort_values('puff_time')
+                # Keep only the first puff for each zone_time
+                df_puffs_first = df_puffs.drop_duplicates(subset=['zone_time'], keep='first')
+                puff_times_q = df_puffs_first['puff_time'].values
+                matched_puff_zone_times_q = df_puffs_first['zone_time'].values
+                puff_delays_q = df_puffs_first['delay'].values
+
             quarters.append({
                 "start": start,
                 "end": end,
