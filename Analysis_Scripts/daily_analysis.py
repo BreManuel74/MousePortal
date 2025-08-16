@@ -839,6 +839,9 @@ class LickPlotter:
     def plot_lick_metrics(df_quarters, ax=None):
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, 7))
+        else:
+            fig = ax.figure
+            
         quarters = df_quarters['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
@@ -870,6 +873,11 @@ class LickPlotter:
         ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        
+        # Save the figure if it wasn't provided as an argument (meaning this is a standalone plot)
+        if ax is None:
+            save_figure(fig, "lick_metrics_bar_chart")
+            
         return ax
 
     @staticmethod
@@ -883,6 +891,9 @@ class LickPlotter:
 
         if ax is None:
             fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_quarters)))
+        else:
+            fig2 = ax.figure
+            
         ax.axis('off')
         mpl_table = ax.table(
             cellText=table_data.values,
@@ -894,6 +905,11 @@ class LickPlotter:
         mpl_table.set_fontsize(10)
         mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
         ax.set_title("Lick Metrics Table by Quarter")
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig2, "lick_metrics_table")
+            
         return ax
     
 class DPrimePlotter:
@@ -909,6 +925,9 @@ class DPrimePlotter:
 
         if ax is None:
             fig3, ax = plt.subplots(figsize=(10, 5))
+        else:
+            fig3 = ax.figure
+            
         rects1 = ax.bar(x - 1.5*width, hits, width, label='Hits', color='green')
         rects2 = ax.bar(x - 0.5*width, misses, width, label='Misses', color='red')
         rects3 = ax.bar(x + 0.5*width, correct_rejections, width, label='Correct Rejections', color='blue')
@@ -932,6 +951,11 @@ class DPrimePlotter:
                          xytext=(0, 3),  # 3 points vertical offset
                          textcoords="offset points",
                          ha='center', va='bottom', fontsize=10)
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig3, "dprime_hits_misses_chart")
+            
         return ax
 
 class SpeedPlotter:
@@ -940,6 +964,9 @@ class SpeedPlotter:
         df_plot = df_speed_quarters.fillna(0)
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, 7))
+        else:
+            fig = ax.figure
+            
         quarters = df_plot['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
@@ -973,6 +1000,11 @@ class SpeedPlotter:
         ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig, "speed_metrics_chart")
+            
         return ax
 
     @staticmethod
@@ -980,6 +1012,9 @@ class SpeedPlotter:
         df_plot = df_speed_quarters.fillna(0)
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, 7))
+        else:
+            fig = ax.figure
+            
         quarters = df_plot['Quarter']
         x = np.arange(len(quarters))
         width = 0.13
@@ -1012,6 +1047,11 @@ class SpeedPlotter:
         ax.legend(loc='upper left', bbox_to_anchor=(0.01, 0.99))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig, "speed_puff_metrics_chart")
+            
         return ax
 
     @staticmethod
@@ -1022,6 +1062,9 @@ class SpeedPlotter:
 
         if ax is None:
             fig2, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
+        else:
+            fig2 = ax.figure
+            
         ax.axis('off')
         mpl_table = ax.table(
             cellText=table_data.values,
@@ -1033,6 +1076,11 @@ class SpeedPlotter:
         mpl_table.set_fontsize(10)
         mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
         ax.set_title("Speed Metrics Table by Quarter")
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig2, "speed_metrics_table")
+            
         return ax
 
     @staticmethod
@@ -1069,6 +1117,9 @@ class SpeedPlotter:
 
         if ax is None:
             fig, ax = plt.subplots(figsize=(14, 2 + 0.5 * len(df_speed_quarters)))
+        else:
+            fig = ax.figure
+            
         ax.axis('off')
         mpl_table = ax.table(
             cellText=table_data.values,
@@ -1080,6 +1131,11 @@ class SpeedPlotter:
         mpl_table.set_fontsize(10)
         mpl_table.auto_set_column_width(col=list(range(len(table_data.columns))))
         ax.set_title("Puff-Based Speed Metrics Table by Quarter")
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig, "puff_speed_metrics_table")
+            
         return ax
 
     @staticmethod
@@ -1102,6 +1158,9 @@ class SpeedPlotter:
 
         if ax is None:
             fig, ax = plt.subplots(figsize=(12, 5))
+        else:
+            fig = ax.figure
+            
         # Plot speed percentage
         jitter = np.random.uniform(-0.1, 0.1, size=len(bin_times))  # Add jitter to x-axis for better visibility
         bin_times = bin_times + jitter
@@ -1132,8 +1191,30 @@ class SpeedPlotter:
         lines1, labels1 = ax.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+        
+        # Save the figure if it wasn't provided as an argument
+        if ax is None:
+            save_figure(fig, "speed_percentage_and_rewards")
 
         return ax, ax2
+
+def save_figure(fig, name):
+    """Save a figure as an SVG file in the output folder
+    
+    Args:
+        fig: The matplotlib figure to save
+        name: Base name for the file (without extension)
+    """
+    global figure_count, output_folder
+    if not hasattr(save_figure, 'figure_count'):
+        save_figure.figure_count = 1
+    
+    filename = f"{name}_{save_figure.figure_count}.svg"
+    filepath = os.path.join(output_folder, filename)
+    fig.savefig(filepath, format="svg", bbox_inches="tight")
+    print(f"Saved figure: {filename}")
+    save_figure.figure_count += 1
+    return filepath
 
 if __name__ == "__main__":
     
@@ -1155,6 +1236,14 @@ if __name__ == "__main__":
     if not folder_path:
         print("No folder selected. Exiting...")
         exit()
+    
+    # Create an output folder for SVG files
+    output_folder = os.path.join(folder_path, "svg_plots")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        print(f"Created directory for SVG files: {output_folder}")
+    else:
+        print(f"Using existing directory for SVG files: {output_folder}")
     
     # Find files containing the required keywords
     trial_log_files = [f for f in os.listdir(folder_path) if 'trial_log.csv' in f]
@@ -1529,13 +1618,7 @@ if __name__ == "__main__":
 
     SpeedPlotter.plot_puff_speed_metrics_table(df_speed_quarters, ax=axs_tables[2])
 
-    # Plot each metric on its own subplot
-    # LickPlotter.plot_lick_metrics(df_quarters, ax=axs[0])
-    DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters)
-    # SpeedPlotter.plot_speed_metrics(df_speed_quarters, ax=axs_speed[0])
-    # SpeedPlotter.plot_speed_puff_metrics(df_speed_quarters, ax=axs_speed[1])
-
-    
+    # Plot lick metrics table in the first panel of the combined table figure
     LickPlotter.plot_lick_metrics_table(df_quarters, [
         'Quarter',
         'average_licks_before_reward',
@@ -1547,10 +1630,45 @@ if __name__ == "__main__":
         'n_no_reward_zones',
     ], ax=axs_tables[0])
 
-    SpeedPlotter.plot_speed_percentage_and_rewards(speed_analysis)
-
+    # Save the tables figure (all three tables combined)
+    save_figure(fig_tables, "combined_metrics_tables")
+    
+    plt.figure()  # Clear any lingering figure references
+    
+    # Create and explicitly save the D-Prime plot
+    try:
+        plt.close('dprime')  # Close any existing figure with this name
+    except:
+        pass
+    fig_dprime = plt.figure(figsize=(10, 5), num='dprime')
+    ax_dprime = fig_dprime.add_subplot(111)
+    DPrimePlotter.plot_hits_misses_cr_fa_bar(df_quarters, df_puff_quarters, ax=ax_dprime)
     plt.tight_layout()
+    save_figure(fig_dprime, "dprime_hits_misses_chart")
+    
+    plt.figure()  # Clear any lingering figure references
+    
+    # Create and explicitly save the speed percentage and rewards plot
+    try:
+        plt.close('speed')  # Close any existing figure with this name
+    except:
+        pass
+    fig_speed = plt.figure(figsize=(12, 5), num='speed')
+    ax_speed = fig_speed.add_subplot(111)
+    speed_ax, speed_ax2 = SpeedPlotter.plot_speed_percentage_and_rewards(speed_analysis, ax=ax_speed)
+    plt.tight_layout()
+    save_figure(fig_speed, "speed_percentage_and_rewards")
+    
+    # Show all figures
     plt.show()
+    
+    # Show a summary of saved figures
+    if hasattr(save_figure, 'figure_count'):
+        print(f"\nAnalysis complete! All figures have been saved as SVG files.")
+        print(f"Location: {output_folder}")
+        print(f"Number of figures saved: {save_figure.figure_count - 1}")
+    else:
+        print("\nAnalysis complete, but no figures were saved.")
 
 
 
@@ -1619,3 +1737,11 @@ if __name__ == "__main__":
     trial_appender.append_trial_number(row_index, n_trials)
     session_appender = SessionLengthAppender(csv_path)
     session_appender.append_session_length(row_index, session_length_minutes)
+    
+    # Show a summary of saved figures
+    if hasattr(save_figure, 'figure_count'):
+        print(f"\nAnalysis complete! All figures have been saved as SVG files.")
+        print(f"Location: {output_folder}")
+        print(f"Number of figures saved: {save_figure.figure_count - 1}")
+    else:
+        print("\nAnalysis complete, but no figures were saved.")

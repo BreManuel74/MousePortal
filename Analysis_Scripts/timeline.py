@@ -10,6 +10,25 @@ import tkinter as tk
 root = tk.Tk()
 root.withdraw()
 
+# Helper function to save figures as SVG files
+def save_figure(fig, name):
+    """Save a figure as an SVG file in the output folder
+    
+    Args:
+        fig: The matplotlib figure to save
+        name: Base name for the file (without extension)
+    """
+    global figure_count, output_folder
+    if not hasattr(save_figure, 'figure_count'):
+        save_figure.figure_count = 1
+    
+    filename = f"{name}_{save_figure.figure_count}.svg"
+    filepath = os.path.join(output_folder, filename)
+    fig.savefig(filepath, format="svg", bbox_inches="tight")
+    print(f"Saved figure: {filename}")
+    save_figure.figure_count += 1
+    return filepath
+
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # Go up one level to the main MousePortal directory
@@ -57,8 +76,13 @@ print(f"  - {os.path.basename(trial_log_path)}")
 print(f"  - {os.path.basename(treadmill_path)}")
 print(f"  - {os.path.basename(capacitive_path)}")
 
-# output_folder = folder_path
-# output_path = os.path.join(output_folder, "timeline.svg")
+# Create an output folder for SVG files
+output_folder = os.path.join(folder_path, "svg_plots")
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+    print(f"Created directory for SVG files: {output_folder}")
+else:
+    print(f"Using existing directory for SVG files: {output_folder}")
 
 # Read the CSV files into pandas DataFrames
 trial_log_df = pd.read_csv(trial_log_path, engine='python')
@@ -126,6 +150,10 @@ reward_array = combined_array[is_reward]
 punish_texture_change_time = punish_array[:, 1, :]
 punish_revert_time = punish_array[:, 2, :]
 
+# Create versions that only use the first puff per zone (for calculations)
+punish_texture_change_time_first = punish_texture_change_time[:, 0]
+punish_revert_time_first = punish_revert_time[:, 0]
+
 # And for reward:
 reward_texture_change_time = reward_array[:, 1, :]
 reward_revert_time = reward_array[:, 2, :]
@@ -174,16 +202,15 @@ for trial_idx in range(reward_texture_change_time.shape[0]):
         except (ValueError, TypeError):
             continue
 
-# Highlight punish intervals
-for trial_idx in range(punish_texture_change_time.shape[0]):
-    for seg_idx in range(punish_texture_change_time.shape[1]):
-        try:
-            start = float(punish_texture_change_time[trial_idx, seg_idx])
-            end = float(punish_revert_time[trial_idx, seg_idx])
-            if not np.isnan(start) and not np.isnan(end):
-                axs[0].axvspan(start, end, color='red', alpha=0.15)
-        except (ValueError, TypeError):
-            continue
+# Highlight punish intervals - only using first puff per zone
+for trial_idx in range(punish_texture_change_time_first.shape[0]):
+    try:
+        start = float(punish_texture_change_time_first[trial_idx])
+        end = float(punish_revert_time_first[trial_idx])
+        if not np.isnan(start) and not np.isnan(end):
+            axs[0].axvspan(start, end, color='red', alpha=0.15)
+    except (ValueError, TypeError):
+        continue
 
 axs[0].set_ylabel('Capacitive Value')
 axs[0].set_title('Capacitive Sensor Over Time with Reward and Puff Events')
@@ -228,16 +255,15 @@ for trial_idx in range(reward_texture_change_time.shape[0]):
         except (ValueError, TypeError):
             continue
 
-# Highlight punish intervals
-for trial_idx in range(punish_texture_change_time.shape[0]):
-    for seg_idx in range(punish_texture_change_time.shape[1]):
-        try:
-            start = float(punish_texture_change_time[trial_idx, seg_idx])
-            end = float(punish_revert_time[trial_idx, seg_idx])
-            if not np.isnan(start) and not np.isnan(end):
-                axs[1].axvspan(start, end, color='red', alpha=0.15)
-        except (ValueError, TypeError):
-            continue
+# Highlight punish intervals - only using first puff per zone
+for trial_idx in range(punish_texture_change_time_first.shape[0]):
+    try:
+        start = float(punish_texture_change_time_first[trial_idx])
+        end = float(punish_revert_time_first[trial_idx])
+        if not np.isnan(start) and not np.isnan(end):
+            axs[1].axvspan(start, end, color='red', alpha=0.15)
+    except (ValueError, TypeError):
+        continue
 
 axs[1].set_xlabel('Elapsed Time (s)')
 axs[1].set_ylabel('Speed')
@@ -251,8 +277,8 @@ for ax in axs:
     ax.set_xlim([xmin, xmax])
 
 plt.tight_layout()
-#plt.savefig(output_path, format="svg")
-#plt.show()
+save_figure(fig, "timeline_capacitive_and_treadmill")
+plt.show()
 
 window = 5  # seconds before and after
 reward_times_flat = reward_texture_change_time.flatten()
@@ -420,6 +446,7 @@ axs[1].tick_params(axis='both', direction='out')
 axs[1].set_xticks(np.arange(-5, 6, 1))
 
 plt.tight_layout()
+save_figure(fig, "reward_event_analysis")
 
 
 # --- Probe Event Analysis: Treadmill Speed and Capacitive Value aligned to probe events ---
@@ -507,7 +534,8 @@ if 'probe_time' in trial_log_df.columns:
             axs[1].set_xticks(np.arange(-5, 6, 1))
             
             plt.tight_layout()
-            #plt.show()
+            save_figure(fig, "probe_event_analysis")
+            plt.show()
         else:
             print("No valid probe event data found for alignment analysis.")
     else:
@@ -565,7 +593,9 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
 plt.tight_layout()
-#plt.show()
+current_fig = plt.gcf()
+save_figure(current_fig, "reward_events_heatmap")
+plt.show()
 
 # --- Match probe_time with texture_revert_time (approximately 1 second before) ---
 
@@ -759,7 +789,8 @@ if 'probe_time' in trial_log_df.columns and len(unpaired_revert_times) > 0 and p
         axs[1].set_xticks(np.arange(-5, 6, 1))
         
         plt.tight_layout()
-        #plt.show()
+        save_figure(fig, "simulated_probe_events")
+        plt.show()
         
     else:
         print("Warning: No valid data windows found for simulated probe analysis.")
@@ -776,8 +807,9 @@ else:
 
 # --- Analysis of Treadmill Speed aligned to Puff Zone Entry Times ---
 
-# Extract all punish_texture_change_times (puff zone entry times) from all trials
-puff_zone_times_flat = punish_texture_change_time.flatten()
+# Extract ONLY FIRST punish_texture_change_times (puff zone entry times) from all trials
+# Use first puff per zone for all calculations
+puff_zone_times_flat = punish_texture_change_time_first
 puff_zone_times_flat = pd.to_numeric(puff_zone_times_flat, errors='coerce')
 puff_zone_times_flat = puff_zone_times_flat[~np.isnan(puff_zone_times_flat)]
 
@@ -899,7 +931,8 @@ if len(puff_zone_times_flat) > 0:
         axs[1].tick_params(axis='both', direction='out')
         
         plt.tight_layout()
-        #plt.show()
+        save_figure(fig, "puff_events_analysis")
+        plt.show()
         
         # print(f"Puff Zone Analysis Complete:")
         # print(f"- Total puff zone entry events: {n_puff_events}")
@@ -914,3 +947,11 @@ else:
     print("Check if the punish_texture_change_time data contains valid numeric values.")
 
 plt.show()
+
+# Show a summary of saved figures
+if hasattr(save_figure, 'figure_count'):
+    print(f"\nAnalysis complete! All figures have been saved as SVG files.")
+    print(f"Location: {output_folder}")
+    print(f"Number of figures saved: {save_figure.figure_count - 1}")
+else:
+    print("\nAnalysis complete, but no figures were saved.")
