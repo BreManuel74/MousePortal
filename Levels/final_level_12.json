@@ -34,12 +34,12 @@
     },
     "base_hallway_min_value": 5,
     "stay_zone_distribution": {
-        "loc": 5,
+        "loc": 6,
         "scale": 1
     },
     "stay_zone_min_value": 2,
     "go_zone_distribution": {
-        "loc": 5,
+        "loc": 6,
         "scale": 1
     },
     "go_zone_min_value": 2,
