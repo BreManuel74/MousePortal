@@ -279,6 +279,9 @@ class Corridor:
         self.floor_texture: str = config["floor_texture"]
         self.go_texture: str = config["go_texture"]
         self.neutral_stim_1 = config["neutral_stim_1"]
+        self.neutral_stim_2 = config["neutral_stim_2"]
+        self.neutral_stim_3 = config["neutral_stim_3"]
+        self.neutral_stim_4 = config["neutral_stim_4"]
         self.stop_texture = config["stop_texture"]
         self.probe_onset = config["probe_onset"]
         self.probe_duration = config["probe_duration"]
@@ -482,9 +485,10 @@ class Corridor:
         """
         # Define a list of possible wall textures
         temporary_wall_textures = [
-            #self.floor_texture,  # Texture 1
-            self.neutral_stim_1,   # Texture 2
-            #self.ceiling_texture,  # Texture 3
+            self.neutral_stim_1,   # Texture 1
+            self.neutral_stim_2,   # Texture 2
+            self.neutral_stim_3,   # Texture 3
+            self.neutral_stim_4,   # Texture 4
         ]
 
         # Randomly select a texture
